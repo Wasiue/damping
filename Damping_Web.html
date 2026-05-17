@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Damping Analysis Tool</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root{--bg:#ffffff;--bg2:#f5f5f3;--bg3:#eeedea;--text:#1a1a18;--text2:#5a5a56;--text3:#9a9a94;--border:rgba(0,0,0,0.12);--border2:rgba(0,0,0,0.22);--blue:#378ADD;--green-bg:#e1f5ee;--green-text:#0F6E56;--red-bg:#fcebeb;--red-text:#A32D2D;--info-bg:#e6f1fb;--info-text:#185FA5;--warn-bg:#faeeda;--warn-text:#854F0B;--radius:8px;--radius-lg:12px;}
+  @media(prefers-color-scheme:dark){:root{--bg:#1e1e1c;--bg2:#2a2a28;--bg3:#323230;--text:#e8e8e2;--text2:#a8a8a0;--text3:#6a6a64;--border:rgba(255,255,255,0.1);--border2:rgba(255,255,255,0.2);--green-bg:#085041;--green-text:#9FE1CB;--red-bg:#791F1F;--red-text:#F7C1C1;--info-bg:#0C447C;--info-text:#B5D4F4;--warn-bg:#633806;--warn-text:#FAC775;}}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg3);color:var(--text);min-height:100vh;padding:24px 16px;max-width:860px;margin:0 auto;}
+  h1{font-size:20px;font-weight:500;margin-bottom:4px;}
+  .subtitle{font-size:13px;color:var(--text2);margin-bottom:20px;}
+  .panel{background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:16px 20px;margin-bottom:12px;}
+  .slabel{font-size:11px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px;display:block;}
+  .tabs{display:flex;gap:4px;margin-bottom:14px;flex-wrap:wrap;}
+  .tab{font-size:13px;padding:5px 14px;border:0.5px solid var(--border2);border-radius:var(--radius);background:transparent;color:var(--text2);cursor:pointer;transition:background .15s;}
+  .tab:hover{background:var(--bg2);}
+  .tab.active{background:var(--bg2);color:var(--text);font-weight:500;}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px;}
+  .field{display:flex;flex-direction:column;gap:4px;}
+  .field label{font-size:12px;color:var(--text2);}
+  input[type=number],input[type=text],input[type=password],select,textarea{font-size:14px;padding:7px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);width:100%;}
+  input:focus,textarea:focus,select:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(55,138,221,0.15);}
+  textarea{font-family:monospace;font-size:12px;resize:vertical;}
+  .toggle-row{display:flex;align-items:center;gap:8px;}
+  .toggle-row input[type=checkbox]{width:15px;height:15px;cursor:pointer;}
+  .toggle-row label{font-size:13px;color:var(--text2);cursor:pointer;}
+  button.primary{font-size:14px;font-weight:500;padding:9px 22px;background:var(--text);color:var(--bg);border:none;border-radius:var(--radius);cursor:pointer;transition:opacity .15s;}
+  button.primary:hover{opacity:0.85;}
+  button.primary:disabled{opacity:0.4;cursor:not-allowed;}
+  .metrics-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px;}
+  .metric{background:var(--bg2);border-radius:var(--radius);padding:12px 14px;}
+  .metric .ml{font-size:11px;color:var(--text3);margin-bottom:4px;}
+  .metric .mv{font-size:20px;font-weight:500;}
+  .metric .mu{font-size:11px;color:var(--text3);margin-left:3px;}
+  .badge{display:inline-flex;align-items:center;gap:5px;font-size:12px;padding:3px 10px;border-radius:var(--radius);}
+  .badge.ok{background:var(--green-bg);color:var(--green-text);}
+  .badge.err{background:var(--red-bg);color:var(--red-text);}
+  .badge.info{background:var(--info-bg);color:var(--info-text);}
+  .drop-zone{border:1.5px dashed var(--border2);border-radius:var(--radius-lg);padding:28px 16px;text-align:center;cursor:pointer;transition:background .15s;}
+  .drop-zone:hover,.drop-zone.drag{background:var(--bg2);}
+  .drop-zone p{font-size:13px;color:var(--text2);margin:4px 0;}
+  .drop-zone .hint{font-size:12px;color:var(--text3);}
+  #preview-img{max-width:100%;border-radius:var(--radius);display:block;margin-top:12px;}
+  .status-row{display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap;}
+  .status-msg{font-size:13px;color:var(--text2);font-style:italic;}
+  .vtabs{display:flex;gap:4px;margin-bottom:10px;flex-wrap:wrap;}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th{text-align:left;padding:6px 8px;font-size:11px;font-weight:500;color:var(--text3);border-bottom:0.5px solid var(--border);}
+  td{padding:6px 8px;border-bottom:0.5px solid var(--border);color:var(--text);}
+  canvas{display:block;width:100%;}
+  hr{border:none;border-top:0.5px solid var(--border);margin:14px 0;}
+  .callout{font-size:12px;padding:8px 12px;border-radius:var(--radius);margin-top:10px;line-height:1.6;}
+  .callout.amber{background:var(--warn-bg);color:var(--warn-text);}
+  .callout.info{background:var(--info-bg);color:var(--info-text);}
+  .study-cards{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
+  .study-card{border:1.5px solid var(--border2);border-radius:var(--radius-lg);padding:12px 14px;cursor:pointer;transition:border-color .15s,background .15s;user-select:none;}
+  .study-card:hover{background:var(--bg2);}
+  .study-card.selected{border-color:var(--blue);background:var(--info-bg);}
+  .study-card .sc-title{font-size:13px;font-weight:500;margin-bottom:4px;color:var(--text);}
+  .study-card.selected .sc-title{color:var(--info-text);}
+  .study-card .sc-desc{font-size:12px;color:var(--text2);line-height:1.5;}
+  .study-card.selected .sc-desc{color:var(--info-text);opacity:0.85;}
+  .offset-box{background:var(--bg2);border-radius:var(--radius);padding:12px 14px;margin-top:4px;}
+  .offset-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  .baseline-info-panel{font-size:13px;color:var(--text2);padding:10px 0 2px;}
+  .baseline-info-panel strong{color:var(--text);}
+  @media(max-width:540px){.row2,.row3,.study-cards{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+
+<h1>Damping Analysis Tool</h1>
+<p class="subtitle">Compute damping ratio, halving time and decay envelope — full time-series, peak lists, generated signals, or graph images</p>
+
+<!-- ═══ STUDY TYPE ═══ -->
+<div class="panel">
+  <span class="slabel">Study type</span>
+  <div class="study-cards">
+    <div class="study-card selected" id="sc-free" onclick="selectStudy('free')">
+      <div class="sc-title">&#9675; Free decay — zero baseline</div>
+      <div class="sc-desc">Signal oscillates around zero. Typical for impact hammer tests, free vibration ring-downs. No offset removal needed.</div>
+    </div>
+    <div class="study-card" id="sc-offset" onclick="selectStudy('offset')">
+      <div class="sc-title">&#9675; Offset oscillation — non-zero baseline</div>
+      <div class="sc-desc">Signal oscillates around a large non-zero mean (e.g. 106 ± 0.5). Baseline is subtracted automatically before analysis.</div>
+    </div>
+  </div>
+  <div class="offset-box" id="offset-box" style="display:none;">
+    <div class="offset-row">
+      <div class="toggle-row">
+        <input type="checkbox" id="auto-baseline" checked onchange="toggleBaselineMode()">
+        <label for="auto-baseline">Auto-detect baseline (mean of last 10% of signal)</label>
+      </div>
+      <div class="field" id="manual-bl-field" style="display:none;min-width:180px;">
+        <label>Manual baseline value</label>
+        <input type="number" id="manual-baseline" placeholder="e.g. 105.97" step="any">
+      </div>
+    </div>
+    <div class="callout amber">Baseline is subtracted from every sample before peak detection. All amplitudes in results are relative to this baseline.</div>
+  </div>
+</div>
+
+<!-- ═══ INPUT MODE ═══ -->
+<div class="panel">
+  <span class="slabel">Input mode</span>
+  <div class="tabs">
+    <button class="tab active" id="tab-series" onclick="switchMode('series')">Full time-series</button>
+    <button class="tab"        id="tab-peaks"  onclick="switchMode('peaks')">Peaks only</button>
+    <button class="tab"        id="tab-gen"    onclick="switchMode('gen')">Generate signal</button>
+    <button class="tab"        id="tab-image"  onclick="switchMode('image')">Image (Claude API)</button>
+  </div>
+
+  <!-- FULL TIME-SERIES -->
+  <div id="pane-series">
+    <p style="font-size:13px;color:var(--text2);margin-bottom:8px;">
+      Two columns: <code>time &nbsp; value</code>. Accepts comma, tab, semicolon, or space delimiters — mix is fine.
+    </p>
+    <textarea id="series-paste" rows="10" placeholder="Comma-separated:&#10;0.0000,106.0000&#10;0.0100,106.0000&#10;&#10;Tab-separated also works:&#10;0.0000&#9;106.0000&#10;0.0100&#9;106.0000&#10;&#10;Space-separated:&#10;0.0000 106.0000&#10;0.0100 106.0000"></textarea>
+    <div class="callout info">The tool detects peaks automatically from the full signal. If using offset mode, baseline is removed first.</div>
+  </div>
+
+  <!-- PEAKS ONLY -->
+  <div id="pane-peaks" style="display:none;">
+    <p style="font-size:13px;color:var(--text2);margin-bottom:8px;">
+      One row per peak: <code>time, amplitude</code>. Amplitudes should already be relative to baseline (offset subtracted manually if needed).
+    </p>
+    <textarea id="peak-paste" rows="8" placeholder="2.22, 0.537&#10;3.32, 0.158&#10;4.20, 0.072&#10;5.09, 0.032"></textarea>
+  </div>
+
+  <!-- GENERATE -->
+  <div id="pane-gen" style="display:none;">
+    <div class="row2">
+      <div class="field"><label>Natural frequency ωₙ (rad/s)</label><input type="number" id="omega_n" value="6.28" step="0.1" min="0.1"></div>
+      <div class="field"><label>True damping ratio ξ</label><input type="number" id="xi_true" value="0.08" step="0.01" min="0.001" max="0.99"></div>
+    </div>
+    <div class="row3">
+      <div class="field"><label>Duration (s)</label><input type="number" id="duration" value="15" step="1" min="1"></div>
+      <div class="field"><label>Sample rate (Hz)</label><input type="number" id="sr" value="200" step="10" min="10"></div>
+      <div class="field"><label>Noise level</label><input type="number" id="noise" value="0.02" step="0.01" min="0"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>DC offset added to signal (0 = none)</label><input type="number" id="gen-offset" value="0" step="1"></div>
+    </div>
+  </div>
+
+  <!-- IMAGE -->
+  <div id="pane-image" style="display:none;">
+    <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-in').click()" ondragover="dzOver(event)" ondragleave="dzOut()" ondrop="dzDrop(event)">
+      <div style="font-size:32px;margin-bottom:8px;">📈</div>
+      <p>Drop an oscillation graph here, or click to browse</p>
+      <p class="hint">PNG, JPG, WebP — any amplitude-vs-time plot</p>
+    </div>
+    <input type="file" id="file-in" accept="image/*" style="display:none" onchange="onFile(this.files[0])">
+    <img id="preview-img" alt="Uploaded graph" style="display:none">
+    <hr>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:8px;">Axis scale hints <span style="color:var(--text3)">(optional)</span></p>
+    <div class="row2">
+      <div class="field"><label>Time min</label><input type="number" id="t_min" placeholder="e.g. 0" step="any"></div>
+      <div class="field"><label>Time max</label><input type="number" id="t_max" placeholder="e.g. 10" step="any"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>Amplitude min</label><input type="number" id="a_min" placeholder="e.g. -2" step="any"></div>
+      <div class="field"><label>Amplitude max</label><input type="number" id="a_max" placeholder="e.g. 2" step="any"></div>
+    </div>
+    <hr>
+    <div class="field" style="margin-bottom:8px;">
+      <label>Anthropic API key <span style="color:var(--text3)">(session only, never saved to disk)</span></label>
+      <input type="password" id="api-key" placeholder="sk-ant-...">
+    </div>
+    <div class="callout amber">Key is sent only to api.anthropic.com/v1/messages and is not stored anywhere.</div>
+  </div>
+</div>
+
+<!-- ═══ DETECTION OPTIONS ═══ -->
+<div class="panel">
+  <span class="slabel">Detection &amp; fitting options</span>
+  <div class="row3">
+    <div class="field"><label>Peak prominence threshold</label><input type="number" id="prominence" value="0.005" step="0.001" min="0"></div>
+    <div class="field"><label>Smoothing window (samples)</label><input type="number" id="smooth" value="3" step="2" min="1"></div>
+    <div class="field"><label>Min peaks required</label><input type="number" id="min-peaks" value="3" step="1" min="2"></div>
+  </div>
+  <div style="display:flex;gap:24px;flex-wrap:wrap;">
+    <div class="toggle-row"><input type="checkbox" id="env-fit" checked><label for="env-fit">Envelope fit (log-linear regression)</label></div>
+    <div class="toggle-row"><input type="checkbox" id="prony-fit"><label for="prony-fit">Prony / curve-fit</label></div>
+  </div>
+</div>
+
+<!-- ═══ RUN ═══ -->
+<div class="status-row">
+  <button class="primary" id="run-btn" onclick="run()">&#9654; Run analysis</button>
+  <div id="status-badge"></div>
+  <span class="status-msg" id="status-msg"></span>
+</div>
+
+<!-- ═══ RESULTS ═══ -->
+<div id="results-block" style="display:none;">
+
+  <div class="panel" id="baseline-strip" style="display:none;">
+    <span class="slabel">Baseline removal applied</span>
+    <div class="baseline-info-panel" id="baseline-info"></div>
+  </div>
+
+  <div class="panel">
+    <span class="slabel">Results</span>
+    <div class="metrics-grid" id="metrics-grid"></div>
+    <div class="vtabs">
+      <button class="tab active" id="vtab-signal"  onclick="switchV('signal')">Raw signal</button>
+      <button class="tab"        id="vtab-osc"     onclick="switchV('osc')">Oscillatory component</button>
+      <button class="tab"        id="vtab-log"     onclick="switchV('log')">Log-amplitude</button>
+      <button class="tab"        id="vtab-deltas"  onclick="switchV('deltas')">Log-decrements</button>
+    </div>
+    <div id="vpane-signal"><div style="height:240px;"><canvas id="chart-signal"></canvas></div></div>
+    <div id="vpane-osc"    style="display:none;"><div style="height:220px;"><canvas id="chart-osc"></canvas></div></div>
+    <div id="vpane-log"    style="display:none;"><div style="height:200px;"><canvas id="chart-log"></canvas></div></div>
+    <div id="vpane-deltas" style="display:none;">
+      <table><thead><tr><th>Pair</th><th>t₁</th><th>t₂</th><th>A₁</th><th>A₂</th><th>δ = ln(A₁/A₂)</th></tr></thead>
+      <tbody id="delta-tbody"></tbody></table>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ══ STATE ══ */
+let mode='series', studyType='free';
+let b64=null, mime=null;
+let chartS=null, chartO=null, chartL=null;
+
+/* ══ UI ══ */
+function switchMode(m){
+  mode=m;
+  ['series','peaks','gen','image'].forEach(k=>{
+    document.getElementById('pane-'+k).style.display=k===m?'block':'none';
+    document.getElementById('tab-'+k).classList.toggle('active',k===m);
+  });
+}
+
+function selectStudy(t){
+  studyType=t;
+  document.getElementById('sc-free').classList.toggle('selected',t==='free');
+  document.getElementById('sc-offset').classList.toggle('selected',t==='offset');
+  document.getElementById('offset-box').style.display=t==='offset'?'block':'none';
+}
+
+function toggleBaselineMode(){
+  const auto=document.getElementById('auto-baseline').checked;
+  document.getElementById('manual-bl-field').style.display=auto?'none':'flex';
+}
+
+/* ══ STATUS ══ */
+function setStatus(type,msg){
+  const icons={ok:'✓',err:'✗',info:'ℹ'};
+  document.getElementById('status-badge').innerHTML=`<span class="badge ${type}">${icons[type]} ${msg}</span>`;
+}
+function setMsg(m){document.getElementById('status-msg').textContent=m;}
+
+/* ══ FLEXIBLE PARSER — comma / tab / semicolon / space ══ */
+function parseRows(text){
+  const t=[],x=[];
+  for(const line of text.trim().split(/\r?\n/)){
+    const raw=line.trim();
+    if(!raw||raw.startsWith('#'))continue;
+    // split on comma, tab, semicolon, or 2+ spaces, or single space
+    const parts=raw.split(/[,;\t]|\s+/).map(s=>s.trim()).filter(Boolean);
+    if(parts.length>=2){
+      const ti=parseFloat(parts[0]),xi=parseFloat(parts[1]);
+      if(!isNaN(ti)&&!isNaN(xi)){t.push(ti);x.push(xi);}
+    }
+  }
+  return{t,x};
+}
+
+/* ══ BASELINE ══ */
+function autoBaseline(x){
+  const tail=x.slice(Math.max(0,Math.floor(x.length*0.9)));
+  return tail.reduce((a,b)=>a+b,0)/tail.length;
+}
+
+/* ══ SIGNAL GENERATION ══ */
+function generateSignal(){
+  const wn=+document.getElementById('omega_n').value;
+  const xi=+document.getElementById('xi_true').value;
+  const dur=+document.getElementById('duration').value;
+  const sr=+document.getElementById('sr').value;
+  const noise=+document.getElementById('noise').value;
+  const offset=+(document.getElementById('gen-offset').value||0);
+  const sigma=xi*wn,wd=Math.sqrt(1-xi*xi)*wn;
+  const t=[],x=[];
+  for(let i=0;i<=Math.round(dur*sr);i++){
+    const ti=i/sr;
+    t.push(ti);
+    x.push(offset+Math.exp(-sigma*ti)*Math.cos(wd*ti)+(Math.random()-.5)*2*noise);
+  }
+  return{t,x};
+}
+
+/* ══ SMOOTHING & PEAKS ══ */
+function smooth(x,w){
+  if(w<=1)return[...x];
+  const h=Math.floor(w/2),out=[];
+  for(let i=0;i<x.length;i++){let s=0,c=0;for(let j=Math.max(0,i-h);j<=Math.min(x.length-1,i+h);j++){s+=x[j];c++;}out.push(s/c);}
+  return out;
+}
+function findPeaks(x,prom){
+  const pk=[];
+  for(let i=1;i<x.length-1;i++)if(x[i]>x[i-1]&&x[i]>x[i+1]&&x[i]>prom)pk.push(i);
+  return pk;
+}
+
+/* ══ DAMPING MATH ══ */
+function computeDamping(tp,Ap){
+  const deltas=[],pairs=[];
+  for(let i=0;i<tp.length-1;i++){
+    const A1=Ap[i],A2=Ap[i+1];
+    if(A1>0&&A2>0){deltas.push(Math.log(A1/A2));pairs.push([tp[i],tp[i+1]]);}
+  }
+  if(!deltas.length)return{valid:false,message:'No valid peak ratios — all amplitudes must be positive after baseline removal'};
+  const delta=deltas.reduce((a,b)=>a+b)/deltas.length;
+  const dt=pairs.reduce((s,p)=>s+(p[1]-p[0]),0)/pairs.length;
+  const sigma=delta/dt,wd=2*Math.PI/dt,wn=Math.sqrt(sigma*sigma+wd*wd);
+  const xi=sigma/wn,T_half=Math.log(2)/sigma;
+  const res={valid:true,message:`${tp.length} peaks`,xi,T_half,sigma,omega_d:wd,omega_n:wn,delta_mean:delta,deltas,pairs};
+
+  if(document.getElementById('env-fit').checked){
+    const lnA=Ap.map(a=>Math.log(Math.abs(a)));
+    let sx=0,sy=0,sxx=0,sxy=0,n=tp.length;
+    for(let i=0;i<n;i++){sx+=tp[i];sy+=lnA[i];sxx+=tp[i]*tp[i];sxy+=tp[i]*lnA[i];}
+    const m=(n*sxy-sx*sy)/(n*sxx-sx*sx),c=(sy-m*sx)/n;
+    const se=-m,on_e=Math.sqrt(se*se+wd*wd);
+    const pred=tp.map(t=>m*t+c);
+    const ss_res=lnA.reduce((s,v,i)=>s+(v-pred[i])**2,0);
+    const mean_ln=sy/n,ss_tot=lnA.reduce((s,v)=>s+(v-mean_ln)**2,0);
+    res.xi_env=se/on_e;res.R2=ss_tot>0?1-ss_res/ss_tot:1;res.env_line={m,c};
+  }
+
+  if(document.getElementById('prony-fit').checked&&tp.length>=4){
+    try{Object.assign(res,pronyFit(tp,Ap,sigma,wd));}catch(e){res.prony_error=e.message;}
+  }
+  return res;
+}
+
+function pronyFit(tp,Ap,s0,w0){
+  let A=Ap[0],s=s0,w=w0,phi=0;
+  const norm=()=>tp.reduce((sum,t,i)=>{const v=A*Math.exp(-s*t)*Math.cos(w*t+phi)-Ap[i];return sum+v*v;},0);
+  let prev=norm(),lr=1e-3;
+  for(let it=0;it<3000;it++){
+    const eps=1e-6,g=(get,set)=>{const o=get();set(o+eps);const v=norm();set(o);return(v-prev)/eps;};
+    const dA=g(()=>A,v=>A=v),ds=g(()=>s,v=>s=v),dw=g(()=>w,v=>w=v),dp=g(()=>phi,v=>phi=v);
+    A-=lr*dA;s=Math.max(1e-6,s-lr*ds);w=Math.max(0.01,w-lr*dw);phi-=lr*dp;
+    const cur=norm();lr=cur<prev?lr*1.05:lr*0.5;prev=cur;
+    if(Math.abs(cur-prev)<1e-12)break;
+  }
+  const sp=Math.abs(s),on=Math.sqrt(sp*sp+w*w);
+  return{sigma_prony:sp,omega_prony:w,xi_prony:sp/on,T_half_prony:Math.log(2)/sp};
+}
+
+/* ══ VISION API ══ */
+function dzOver(e){e.preventDefault();document.getElementById('drop-zone').classList.add('drag');}
+function dzOut(){document.getElementById('drop-zone').classList.remove('drag');}
+function dzDrop(e){e.preventDefault();dzOut();if(e.dataTransfer.files[0])onFile(e.dataTransfer.files[0]);}
+function onFile(file){
+  if(!file)return;mime=file.type||'image/png';
+  const r=new FileReader();
+  r.onload=ev=>{b64=ev.target.result.split(',')[1];const img=document.getElementById('preview-img');img.src=ev.target.result;img.style.display='block';setStatus('info','Image loaded');};
+  r.readAsDataURL(file);
+}
+async function runVision(){
+  const key=document.getElementById('api-key').value.trim();
+  if(!key)throw new Error('Enter API key');
+  if(!b64)throw new Error('Upload image first');
+  setMsg('Claude is reading the graph…');
+  const tMin=document.getElementById('t_min').value,tMax=document.getElementById('t_max').value;
+  const aMin=document.getElementById('a_min').value,aMax=document.getElementById('a_max').value;
+  let hint='';
+  if(tMin||tMax)hint+=`Time: ${tMin||'?'} to ${tMax||'?'}. `;
+  if(aMin||aMax)hint+=`Amplitude: ${aMin||'?'} to ${aMax||'?'}. `;
+  const sys=`Extract positive peaks from oscillation graph. Return ONLY raw JSON (no markdown): {"t_unit":"s","a_unit":"","t_peaks":[…],"A_peaks":[…],"notes":"…"} Positive peaks only, at least 2.`;
+  const resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',
+    headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+    body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:sys,
+      messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:mime,data:b64}},{type:'text',text:hint?`Hint: ${hint}Extract JSON.`:'Extract JSON.'}]}]})});
+  const data=await resp.json();
+  if(!resp.ok)throw new Error(data.error?.message||'API error '+resp.status);
+  return JSON.parse(data.content.map(c=>c.text||'').join('').replace(/```json|```/g,'').trim());
+}
+
+/* ══ MAIN RUN ══ */
+async function run(){
+  document.getElementById('run-btn').disabled=true;
+  document.getElementById('results-block').style.display='none';
+  setStatus('info','Running…');setMsg('');
+
+  try{
+    let tp,Ap,fullT=null,fullXraw=null,fullX=null,tUnit='s';
+    let baseline=0,blApplied=false;
+    const prom=+document.getElementById('prominence').value;
+    const smoothW=+document.getElementById('smooth').value;
+    const minPk=+document.getElementById('min-peaks').value||3;
+    const winOdd=smoothW%2===0?smoothW+1:smoothW;
+
+    const getBaseline=(x)=>{
+      if(studyType!=='offset')return 0;
+      return document.getElementById('auto-baseline').checked
+        ? autoBaseline(x)
+        : (parseFloat(document.getElementById('manual-baseline').value)||0);
+    };
+
+    if(mode==='series'){
+      const text=document.getElementById('series-paste').value;
+      if(!text.trim()){setStatus('err','No data pasted');document.getElementById('run-btn').disabled=false;return;}
+      const{t,x}=parseRows(text);
+      if(t.length<10){setStatus('err',`Only ${t.length} rows parsed — check format`);document.getElementById('run-btn').disabled=false;return;}
+      fullT=t;fullXraw=[...x];
+      baseline=getBaseline(x);blApplied=studyType==='offset';
+      const xAdj=blApplied?x.map(v=>v-baseline):[...x];
+      fullX=xAdj;
+      const xs=smooth(xAdj,winOdd);
+      const idx=findPeaks(xs,prom);
+      if(idx.length<minPk){
+        setStatus('err',`Only ${idx.length} peak(s) found. Try: lower prominence (current: ${prom}), or switch to "Offset oscillation" study type if signal has large DC offset.`);
+        document.getElementById('run-btn').disabled=false;return;
+      }
+      tp=idx.map(i=>t[i]);Ap=idx.map(i=>xs[i]);
+
+    }else if(mode==='peaks'){
+      const{t,x}=parseRows(document.getElementById('peak-paste').value);
+      if(t.length<2){setStatus('err','Need at least 2 peak rows');document.getElementById('run-btn').disabled=false;return;}
+      tp=t;Ap=x;
+
+    }else if(mode==='gen'){
+      const{t,x}=generateSignal();
+      fullT=t;fullXraw=[...x];
+      baseline=getBaseline(x);blApplied=studyType==='offset';
+      const xAdj=blApplied?x.map(v=>v-baseline):[...x];
+      fullX=xAdj;
+      const xs=smooth(xAdj,winOdd);
+      const idx=findPeaks(xs,prom);
+      if(idx.length<minPk){setStatus('err',`Only ${idx.length} peak(s) found`);document.getElementById('run-btn').disabled=false;return;}
+      tp=idx.map(i=>t[i]);Ap=idx.map(i=>xs[i]);
+
+    }else{
+      const parsed=await runVision();
+      if(!parsed?.t_peaks||parsed.t_peaks.length<2){setStatus('err','Could not extract enough peaks');document.getElementById('run-btn').disabled=false;return;}
+      tp=parsed.t_peaks;Ap=parsed.A_peaks;tUnit=parsed.t_unit||'s';
+      setMsg(parsed.notes||'');
+    }
+
+    const res=computeDamping(tp,Ap);
+    if(!res.valid){setStatus('err',res.message);document.getElementById('run-btn').disabled=false;return;}
+
+    setStatus('ok',`Done — ${res.message}`);
+
+    // baseline info strip
+    if(blApplied){
+      document.getElementById('baseline-strip').style.display='block';
+      document.getElementById('baseline-info').innerHTML=
+        `Subtracted baseline: <strong>${baseline.toFixed(6)}</strong> &nbsp;·&nbsp; `+
+        `Method: <strong>${document.getElementById('auto-baseline').checked?'auto (tail mean)':'manual'}</strong> &nbsp;·&nbsp; `+
+        `All amplitudes in results are relative to this value.`;
+    }else{
+      document.getElementById('baseline-strip').style.display='none';
+    }
+
+    document.getElementById('results-block').style.display='block';
+    renderMetrics(res,tUnit);
+    renderCharts(res,fullT,fullXraw,fullX,tp,Ap,tUnit,baseline,blApplied);
+    renderDeltas(res,Ap);
+
+  }catch(e){setStatus('err',e.message);setMsg('');}
+  document.getElementById('run-btn').disabled=false;
+}
+
+/* ══ METRICS ══ */
+function renderMetrics(res,tUnit){
+  const items=[
+    ['Damping ratio ξ',res.xi.toFixed(4),''],
+    ['Halving time T½',res.T_half.toFixed(3),tUnit],
+    ['Decay rate σ',res.sigma.toFixed(4),'rad/'+tUnit],
+    ['Damped freq ωd',res.omega_d.toFixed(4),'rad/'+tUnit],
+    ['Natural freq ωn',res.omega_n.toFixed(4),'rad/'+tUnit],
+    ['Log-decrement δ̄',res.delta_mean.toFixed(4),''],
+  ];
+  if(res.xi_env!=null)items.push(['ξ (envelope fit)',res.xi_env.toFixed(4),''],['R²',res.R2.toFixed(4),'']);
+  if(res.xi_prony!=null)items.push(['ξ (Prony)',res.xi_prony.toFixed(4),''],['T½ (Prony)',res.T_half_prony.toFixed(3),tUnit]);
+  document.getElementById('metrics-grid').innerHTML=items.map(([l,v,u])=>
+    `<div class="metric"><div class="ml">${l}</div><div class="mv">${v}<span class="mu">${u}</span></div></div>`).join('');
+}
+
+/* ══ CHARTS ══ */
+const cOpts=(xl,yl)=>({responsive:true,maintainAspectRatio:false,animation:false,
+  plugins:{legend:{labels:{color:'#888',font:{size:12},boxWidth:10}}},
+  scales:{x:{type:'linear',title:{display:true,text:xl,color:'#888'},ticks:{color:'#888'},grid:{color:'rgba(128,128,128,0.12)'}},
+          y:{title:{display:true,text:yl,color:'#888'},ticks:{color:'#888'},grid:{color:'rgba(128,128,128,0.12)'}}}});
+
+function renderCharts(res,fullT,fullXraw,fullX,tp,Ap,tUnit,baseline,blApplied){
+  if(chartS)chartS.destroy();
+  if(chartO)chartO.destroy();
+  if(chartL)chartL.destroy();
+
+  // Chart 1 — raw signal with baseline line
+  const ds1=[];
+  if(fullT&&fullXraw){
+    ds1.push({label:'Raw signal',data:fullT.map((t,i)=>({x:t,y:fullXraw[i]})),borderColor:'#378ADD',borderWidth:1,pointRadius:0,tension:0.2});
+    if(blApplied){
+      ds1.push({label:'Baseline ('+baseline.toFixed(4)+')',data:[{x:fullT[0],y:baseline},{x:fullT[fullT.length-1],y:baseline}],borderColor:'#D85A30',borderWidth:1.2,borderDash:[6,4],pointRadius:0});
+      ds1.push({label:'Peaks (raw)',data:tp.map((t,i)=>({x:t,y:Ap[i]+baseline})),borderColor:'#1D9E75',backgroundColor:'#1D9E75',pointRadius:7,showLine:false});
+    }else{
+      ds1.push({label:'Peaks',data:tp.map((t,i)=>({x:t,y:Ap[i]})),borderColor:'#D85A30',backgroundColor:'#D85A30',pointRadius:7,showLine:false});
+    }
+  }else{
+    ds1.push({label:'Peaks',data:tp.map((t,i)=>({x:t,y:Ap[i]})),borderColor:'#D85A30',backgroundColor:'#D85A30',pointRadius:7,showLine:true,tension:0.3});
+  }
+  chartS=new Chart(document.getElementById('chart-signal'),{type:'scatter',data:{datasets:ds1},options:cOpts('Time ('+tUnit+')','Amplitude (raw)')});
+
+  // Chart 2 — oscillatory component (baseline removed)
+  const ds2=[];
+  if(fullT&&fullX){
+    ds2.push({label:'Oscillatory component',data:fullT.map((t,i)=>({x:t,y:fullX[i]})),borderColor:'#378ADD',borderWidth:1,pointRadius:0,tension:0.2});
+  }
+  ds2.push({label:'Peaks',data:tp.map((t,i)=>({x:t,y:Ap[i]})),borderColor:'#D85A30',backgroundColor:'#D85A30',pointRadius:7,showLine:false});
+  if(res.env_line){
+    const{m,c}=res.env_line,eT=[tp[0],tp[tp.length-1]];
+    ds2.push({label:'Envelope +',data:eT.map(t=>({x:t,y:Math.exp(m*t+c)})),borderColor:'#1D9E75',borderWidth:1.5,borderDash:[5,4],pointRadius:0});
+    ds2.push({label:'Envelope −',data:eT.map(t=>({x:t,y:-Math.exp(m*t+c)})),borderColor:'#1D9E75',borderWidth:1.5,borderDash:[5,4],pointRadius:0});
+  }
+  chartO=new Chart(document.getElementById('chart-osc'),{type:'scatter',data:{datasets:ds2},options:cOpts('Time ('+tUnit+')',(blApplied?'Amplitude (− baseline)':'Amplitude'))});
+
+  // Chart 3 — log amplitude
+  const lnA=Ap.map(a=>Math.log(Math.abs(a)));
+  const ds3=[{label:'ln(A)',data:tp.map((t,i)=>({x:t,y:lnA[i]})),borderColor:'#D85A30',backgroundColor:'#D85A30',pointRadius:5,showLine:true,tension:0}];
+  if(res.env_line){const{m,c}=res.env_line;ds3.push({label:'Linear fit',data:[tp[0],tp[tp.length-1]].map(t=>({x:t,y:m*t+c})),borderColor:'#1D9E75',borderWidth:1.5,borderDash:[5,4],pointRadius:0});}
+  chartL=new Chart(document.getElementById('chart-log'),{type:'scatter',data:{datasets:ds3},options:cOpts('Time ('+tUnit+')','ln(Amplitude)')});
+}
+
+function renderDeltas(res,Ap){
+  document.getElementById('delta-tbody').innerHTML=res.deltas.map((d,i)=>`
+    <tr><td>${i+1}→${i+2}</td><td>${res.pairs[i][0].toFixed(4)}</td><td>${res.pairs[i][1].toFixed(4)}</td>
+    <td>${Ap[i].toFixed(6)}</td><td>${Ap[i+1].toFixed(6)}</td><td>${d.toFixed(4)}</td></tr>`).join('');
+}
+
+/* ══ VTAB SWITCHING ══ */
+function switchV(t){
+  ['signal','osc','log','deltas'].forEach(v=>{
+    document.getElementById('vpane-'+v).style.display=v===t?'block':'none';
+    document.getElementById('vtab-'+v).classList.toggle('active',v===t);
+  });
+  if(t==='signal'&&chartS)chartS.resize();
+  if(t==='osc'&&chartO)chartO.resize();
+  if(t==='log'&&chartL)chartL.resize();
+}
+</script>
+</body>
+</html>
