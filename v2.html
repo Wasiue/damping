@@ -5,342 +5,189 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Generator Oscillation Damping Tool</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.1/chartjs-plugin-zoom.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Syne:wght@400;600;700;800&display=swap');
 
   :root {
-    --bg:       #0b0e14;
-    --surface:  #131720;
-    --surface2: #1a2030;
-    --border:   #252d40;
-    --accent:   #3b82f6;
-    --accent2:  #22d3ee;
-    --warn:     #f59e0b;
-    --danger:   #ef4444;
-    --success:  #22c55e;
-    --text:     #e2e8f0;
-    --muted:    #64748b;
-    --mono:     'JetBrains Mono', monospace;
-    --sans:     'Syne', sans-serif;
-    --radius:   6px;
-    --chart-grid: #1a2030;
+    --bg:#0b0e14;--surface:#131720;--surface2:#1a2030;--border:#252d40;
+    --accent:#3b82f6;--accent2:#22d3ee;--warn:#f59e0b;--danger:#ef4444;
+    --success:#22c55e;--text:#e2e8f0;--muted:#64748b;
+    --mono:'JetBrains Mono',monospace;--sans:'Syne',sans-serif;--radius:6px;
+    --chart-grid:#1a2030;
   }
-
   :root.light {
-    --bg:       #f1f5f9;
-    --surface:  #ffffff;
-    --surface2: #e2e8f0;
-    --border:   #cbd5e1;
-    --accent:   #2563eb;
-    --accent2:  #0891b2;
-    --warn:     #d97706;
-    --danger:   #dc2626;
-    --success:  #16a34a;
-    --text:     #0f172a;
-    --muted:    #64748b;
-    --chart-grid: #e2e8f0;
+    --bg:#f1f5f9;--surface:#ffffff;--surface2:#e2e8f0;--border:#cbd5e1;
+    --accent:#2563eb;--accent2:#0891b2;--warn:#d97706;--danger:#dc2626;
+    --success:#16a34a;--text:#0f172a;--muted:#64748b;--chart-grid:#e2e8f0;
   }
-
-  /* ── Theme toggle button ── */
-  #theme-toggle {
-    font-family: var(--mono);
-    font-size: 13px;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    color: var(--text);
-    cursor: pointer;
-    padding: 5px 13px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    transition: all 0.2s;
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-  #theme-toggle:hover { border-color: var(--accent2); color: var(--accent2); }
-  #theme-toggle .toggle-track {
-    width: 30px; height: 16px;
-    border-radius: 8px;
-    background: var(--border);
-    position: relative;
-    transition: background 0.2s;
-    flex-shrink: 0;
-  }
-  :root.light #theme-toggle .toggle-track { background: var(--accent2); }
-  #theme-toggle .toggle-thumb {
-    width: 12px; height: 12px;
-    border-radius: 50%;
-    background: var(--muted);
-    position: absolute;
-    top: 2px; left: 2px;
-    transition: transform 0.2s, background 0.2s;
-  }
-  :root.light #theme-toggle .toggle-thumb { transform: translateX(14px); background: #fff; }
-
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--mono);
-    font-size: 13px;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:var(--mono);font-size:13px;
+    min-height:100vh;display:flex;flex-direction:column;overflow:hidden}
 
   /* ── Header ── */
-  header {
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    padding: 12px 20px;
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    flex-shrink: 0;
-  }
-  header h1 {
-    font-family: var(--sans);
-    font-size: 16px;
-    font-weight: 700;
-    color: var(--accent2);
-    letter-spacing: 0.02em;
-    white-space: nowrap;
-  }
-  header .tagline {
-    color: var(--muted);
-    font-size: 11px;
-    flex: 1;
-  }
-  .btn {
-    font-family: var(--mono);
-    font-size: 12px;
-    font-weight: 500;
-    padding: 7px 16px;
-    border-radius: var(--radius);
-    border: 1px solid var(--border);
-    background: var(--surface2);
-    color: var(--text);
-    cursor: pointer;
-    transition: all 0.15s;
-    white-space: nowrap;
-  }
-  .btn:hover { background: var(--border); border-color: var(--accent); color: var(--accent2); }
-  .btn-primary {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: #fff;
-    font-weight: 700;
-  }
-  .btn-primary:hover { background: #2563eb; border-color: #2563eb; color: #fff; }
-  .btn-sm { padding: 4px 10px; font-size: 11px; }
+  header{background:var(--surface);border-bottom:1px solid var(--border);
+    padding:10px 18px;display:flex;align-items:center;gap:14px;flex-shrink:0}
+  header h1{font-family:var(--sans);font-size:15px;font-weight:800;color:var(--accent2);
+    letter-spacing:.02em;white-space:nowrap}
+  header .tagline{color:var(--muted);font-size:10px;flex:1}
+  .btn{font-family:var(--mono);font-size:12px;font-weight:500;padding:6px 14px;
+    border-radius:var(--radius);border:1px solid var(--border);background:var(--surface2);
+    color:var(--text);cursor:pointer;transition:all .15s;white-space:nowrap}
+  .btn:hover{background:var(--border);border-color:var(--accent);color:var(--accent2)}
+  .btn-primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}
+  .btn-primary:hover{background:#2563eb;border-color:#2563eb;color:#fff}
+  .btn-warn{background:var(--warn);border-color:var(--warn);color:#000;font-weight:700}
+  .btn-warn:hover{background:#d97706}
+  /* theme toggle */
+  #theme-toggle{font-family:var(--mono);font-size:12px;background:var(--surface2);
+    border:1px solid var(--border);border-radius:20px;color:var(--text);cursor:pointer;
+    padding:5px 12px;display:flex;align-items:center;gap:6px;transition:all .2s;
+    white-space:nowrap;flex-shrink:0}
+  #theme-toggle:hover{border-color:var(--accent2);color:var(--accent2)}
+  #theme-toggle .toggle-track{width:28px;height:15px;border-radius:8px;background:var(--border);
+    position:relative;transition:background .2s;flex-shrink:0}
+  :root.light #theme-toggle .toggle-track{background:var(--accent2)}
+  #theme-toggle .toggle-thumb{width:11px;height:11px;border-radius:50%;background:var(--muted);
+    position:absolute;top:2px;left:2px;transition:transform .2s,background .2s}
+  :root.light #theme-toggle .toggle-thumb{transform:translateX(13px);background:#fff}
 
   /* ── Settings bar ── */
-  #settings-bar {
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    padding: 10px 20px;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 14px;
-    align-items: center;
-    flex-shrink: 0;
-  }
-  .setting-group {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .setting-group label {
-    color: var(--muted);
-    font-size: 11px;
-    white-space: nowrap;
-  }
-  .setting-group input[type=number] {
-    width: 70px;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    color: var(--text);
-    font-family: var(--mono);
-    font-size: 12px;
-    padding: 4px 6px;
-  }
-  .setting-group input[type=number]:focus { outline: none; border-color: var(--accent); }
-  .toggle-label {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    cursor: pointer;
-    color: var(--text);
-    font-size: 11px;
-    user-select: none;
-  }
-  .toggle-label input[type=checkbox] { accent-color: var(--accent); width: 14px; height: 14px; }
-  .sep { width: 1px; height: 22px; background: var(--border); }
+  #settings-bar{background:var(--surface);border-bottom:1px solid var(--border);
+    padding:8px 18px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;flex-shrink:0}
+  .setting-group{display:flex;align-items:center;gap:5px}
+  .setting-group label{color:var(--muted);font-size:10px;white-space:nowrap}
+  .setting-group input[type=number]{width:68px;background:var(--surface2);
+    border:1px solid var(--border);border-radius:var(--radius);color:var(--text);
+    font-family:var(--mono);font-size:11px;padding:3px 5px}
+  .setting-group input[type=number]:focus{outline:none;border-color:var(--accent)}
+  .toggle-label{display:flex;align-items:center;gap:5px;cursor:pointer;
+    color:var(--text);font-size:10px;user-select:none}
+  .toggle-label input[type=checkbox]{accent-color:var(--accent);width:13px;height:13px}
+  .sep{width:1px;height:20px;background:var(--border)}
 
-  /* ── Prony sliders panel ── */
-  #prony-panel {
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    padding: 10px 20px;
-    display: none;
-    flex-wrap: wrap;
-    gap: 20px;
-    align-items: center;
-    flex-shrink: 0;
-  }
-  #prony-panel.visible { display: flex; }
-  .slider-group {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex: 1;
-    min-width: 200px;
-  }
-  .slider-group label { color: var(--muted); font-size: 11px; white-space: nowrap; }
-  .slider-group input[type=range] {
-    flex: 1;
-    accent-color: var(--accent2);
-    cursor: pointer;
-  }
-  .slider-val {
-    font-weight: 700;
-    color: var(--accent2);
-    min-width: 36px;
-    text-align: right;
-    font-size: 12px;
-  }
+  /* ── Prony sliders ── */
+  #prony-panel{background:var(--surface);border-bottom:1px solid var(--border);
+    padding:8px 18px;display:none;flex-wrap:wrap;gap:18px;align-items:center;flex-shrink:0}
+  #prony-panel.visible{display:flex}
+  .slider-group{display:flex;align-items:center;gap:7px;flex:1;min-width:190px}
+  .slider-group label{color:var(--muted);font-size:10px;white-space:nowrap}
+  .slider-group input[type=range]{flex:1;accent-color:var(--accent2);cursor:pointer}
+  .slider-val{font-weight:700;color:var(--accent2);min-width:34px;text-align:right;font-size:11px}
 
   /* ── Main layout ── */
-  #main {
-    flex: 1;
-    display: grid;
-    grid-template-columns: 380px 1fr;
-    grid-template-rows: 1fr 1fr;
-    min-height: 0;
-    gap: 0;
-  }
+  #main{flex:1;display:grid;grid-template-columns:390px 1fr;grid-template-rows:1fr 1fr;
+    min-height:0;gap:0}
 
   /* left panes */
-  #input-pane, #output-pane {
-    background: var(--surface);
-    border-right: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-    overflow: hidden;
-  }
-  #input-pane { border-bottom: 1px solid var(--border); }
-  .pane-header {
-    padding: 7px 12px;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--muted);
-    background: var(--bg);
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-shrink: 0;
-  }
-  .pane-header .dot {
-    width: 7px; height: 7px;
-    border-radius: 50%;
-    background: var(--accent2);
-  }
-  textarea {
-    flex: 1;
-    background: transparent;
-    border: none;
-    outline: none;
-    color: var(--text);
-    font-family: var(--mono);
-    font-size: 12px;
-    padding: 10px 12px;
-    resize: none;
-    line-height: 1.6;
-  }
-  textarea::placeholder { color: var(--muted); }
-  #output-box {
-    flex: 1;
-    overflow-y: auto;
-    padding: 10px 12px;
-    font-size: 12px;
-    line-height: 1.7;
-    white-space: pre;
-    color: var(--text);
-  }
-  #output-box::-webkit-scrollbar { width: 5px; }
-  #output-box::-webkit-scrollbar-track { background: transparent; }
-  #output-box::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  #input-pane,#output-pane{background:var(--surface);border-right:1px solid var(--border);
+    display:flex;flex-direction:column;min-height:0;overflow:hidden}
+  #input-pane{border-bottom:1px solid var(--border)}
+  .pane-header{padding:6px 11px;font-size:9px;font-weight:700;letter-spacing:.12em;
+    text-transform:uppercase;color:var(--muted);background:var(--bg);
+    border-bottom:1px solid var(--border);display:flex;align-items:center;gap:7px;flex-shrink:0}
+  .pane-header .dot{width:6px;height:6px;border-radius:50%;background:var(--accent2)}
+  .pane-header .actions{margin-left:auto;display:flex;gap:5px}
+  textarea{flex:1;background:transparent;border:none;outline:none;color:var(--text);
+    font-family:var(--mono);font-size:11px;padding:9px 11px;resize:none;line-height:1.6}
+  textarea::placeholder{color:var(--muted)}
+  #output-box{flex:1;overflow-y:auto;padding:9px 11px;font-size:11px;line-height:1.7;
+    white-space:pre;color:var(--text)}
+  #output-box::-webkit-scrollbar{width:4px}
+  #output-box::-webkit-scrollbar-track{background:transparent}
+  #output-box::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
 
-  /* right: chart pane */
-  #chart-pane {
-    grid-column: 2;
-    grid-row: 1 / span 2;
-    background: var(--bg);
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-    position: relative;
-  }
-  #chart-pane .pane-header { border-left: 1px solid var(--border); }
-  #chart-container {
-    flex: 1;
-    position: relative;
-    padding: 12px 16px 8px;
-    min-height: 0;
-  }
-  canvas#main-chart { display: block; }
+  /* right: tabbed chart pane */
+  #chart-pane{grid-column:2;grid-row:1/span 2;background:var(--bg);
+    display:flex;flex-direction:column;min-height:0}
+  .tab-bar{display:flex;gap:0;border-bottom:1px solid var(--border);
+    background:var(--surface);flex-shrink:0;padding:0 12px}
+  .tab{padding:7px 16px;font-size:10px;font-weight:600;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;
+    transition:all .15s;user-select:none;white-space:nowrap}
+  .tab:hover{color:var(--text)}
+  .tab.active{color:var(--accent2);border-bottom-color:var(--accent2)}
+  .tab-panel{display:none;flex:1;min-height:0;flex-direction:column}
+  .tab-panel.active{display:flex}
+  #chart-container{flex:1;position:relative;padding:10px 14px 6px;min-height:0}
+  canvas#main-chart{display:block}
 
-  /* compliance badges */
-  .badge {
-    display: inline-block;
-    padding: 1px 7px;
-    border-radius: 3px;
-    font-size: 11px;
-    font-weight: 700;
-  }
-  .badge-pass { background: #14532d; color: var(--success); }
-  :root.light .badge-pass { background: #dcfce7; }
-  :root.light .badge-fail { background: #fee2e2; }
-  .badge-fail { background: #450a0a; color: var(--danger); }
+  /* PSD panel */
+  #psd-container{flex:1;position:relative;padding:10px 14px 6px;min-height:0}
+  canvas#psd-chart{display:block}
+  #psd-info{padding:6px 14px;font-size:10px;color:var(--muted);
+    border-top:1px solid var(--border);flex-shrink:0;display:flex;gap:20px}
+  #psd-info span{color:var(--text)}
+
+  /* Metrics panel */
+  #metrics-panel{flex:1;overflow-y:auto;padding:14px;display:flex;flex-wrap:wrap;
+    gap:12px;align-content:flex-start}
+  .metric-card{background:var(--surface);border:1px solid var(--border);
+    border-radius:8px;padding:12px 16px;min-width:180px;flex:1}
+  .metric-card .mc-label{font-size:9px;font-weight:700;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+  .metric-card .mc-value{font-size:22px;font-weight:700;color:var(--text);
+    font-family:var(--sans);line-height:1.1}
+  .metric-card .mc-unit{font-size:10px;color:var(--muted);margin-top:2px}
+  .metric-card .mc-sub{font-size:10px;color:var(--muted);margin-top:4px;font-style:italic}
+  .metric-card.pass{border-color:var(--success)}
+  .metric-card.fail{border-color:var(--danger)}
+  .metric-card.warn{border-color:var(--warn)}
+  .metric-card .mc-value.pass{color:var(--success)}
+  .metric-card .mc-value.fail{color:var(--danger)}
+  .metric-card .mc-value.warn{color:var(--warn)}
+  .section-title{width:100%;font-size:9px;font-weight:700;letter-spacing:.12em;
+    text-transform:uppercase;color:var(--muted);padding:4px 0 2px;border-bottom:1px solid var(--border)}
 
   /* status bar */
-  #statusbar {
-    background: var(--bg);
-    border-top: 1px solid var(--border);
-    padding: 4px 20px;
-    font-size: 10px;
-    color: var(--muted);
-    display: flex;
-    gap: 20px;
-    flex-shrink: 0;
-  }
-  #statusbar span { color: var(--text); }
+  #statusbar{background:var(--bg);border-top:1px solid var(--border);padding:3px 18px;
+    font-size:9px;color:var(--muted);display:flex;gap:18px;flex-shrink:0;flex-wrap:wrap}
+  #statusbar span{color:var(--text)}
+  #statusbar .warn-text{color:var(--warn)}
 
-  /* file input hidden */
-  #file-input { display: none; }
+  #file-input{display:none}
+  #toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);
+    background:var(--surface);color:var(--danger);border:1px solid var(--danger);
+    border-radius:var(--radius);padding:7px 16px;font-size:11px;display:none;
+    z-index:999;max-width:500px;text-align:center}
 
-  /* error toast */
-  #toast {
-    position: fixed;
-    bottom: 30px; left: 50%; transform: translateX(-50%);
-    background: var(--surface);
-    color: var(--danger);
-    border: 1px solid var(--danger);
-    border-radius: var(--radius);
-    padding: 8px 18px;
-    font-size: 12px;
-    display: none;
-    z-index: 999;
-    max-width: 500px;
-    text-align: center;
-  }
+  /* column select */
+  #col-select-row{display:none;align-items:center;gap:8px;
+    font-size:10px;color:var(--muted)}
+  #col-select-row.visible{display:flex}
+  #col-select-row select{font-family:var(--mono);font-size:10px;background:var(--surface2);
+    border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:3px 6px}
+
+  /* ── Prony window handle overlay ── */
+  #chart-overlay-wrap {position:relative;flex:1;min-height:0;display:flex;flex-direction:column}
+  #chart-container {flex:1;position:relative;padding:10px 14px 6px;min-height:0}
+  canvas#main-chart {display:block}
+  #handle-canvas {position:absolute;top:0;left:0;width:100%;height:100%;
+    pointer-events:none;z-index:10}
+  #handle-canvas.active {pointer-events:auto}
+
+  /* ── Chart toolbar (zoom/pan controls) ── */
+  #chart-toolbar {
+    display:flex;align-items:center;gap:6px;padding:4px 14px;
+    border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0}
+  #chart-toolbar .tb-label {font-size:9px;color:var(--muted);text-transform:uppercase;
+    letter-spacing:.08em;margin-right:2px}
+  .tb-btn {font-family:var(--mono);font-size:10px;padding:3px 9px;
+    border-radius:4px;border:1px solid var(--border);background:var(--surface2);
+    color:var(--text);cursor:pointer;transition:all .12s;white-space:nowrap}
+  .tb-btn:hover {border-color:var(--accent);color:var(--accent2)}
+  .tb-btn.active {background:var(--accent);border-color:var(--accent);color:#fff}
+  .tb-sep {width:1px;height:16px;background:var(--border);margin:0 2px}
+
+  /* ── Prony window info strip ── */
+  #prony-window-strip {
+    display:none;padding:4px 14px;font-size:10px;color:var(--muted);
+    background:var(--surface);border-bottom:1px solid var(--border);
+    flex-shrink:0;align-items:center;gap:14px;flex-wrap:wrap}
+  #prony-window-strip.visible {display:flex}
+  #prony-window-strip span {color:var(--accent2);font-weight:700}
+  #prony-window-strip .pw-hint {color:var(--muted);font-style:italic;font-size:9px}
 </style>
 </head>
 <body>
@@ -348,7 +195,7 @@
 <!-- ── Header ── -->
 <header>
   <h1>⚡ Generator Oscillation Damping Tool</h1>
-  <span class="tagline">Paste TAB/space-separated Time(s) and MW data, or load a file.</span>
+  <span class="tagline">Paste space/tab/comma-separated Time(s) and MW data, or load a file. Press <kbd style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:1px 4px">Enter</kbd> to calculate.</span>
   <input type="file" id="file-input" accept=".csv,.txt,*">
   <button id="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode">
     <span id="theme-icon">☀️</span>
@@ -356,7 +203,8 @@
     <span id="theme-label">Light</span>
   </button>
   <button class="btn" onclick="document.getElementById('file-input').click()">📂 Load File</button>
-  <button class="btn btn-primary" onclick="calculate()">▶ Calculate</button>
+  <button class="btn btn-primary" onclick="calculate()" title="Calculate (Enter)">▶ Calculate</button>
+  <button class="btn" onclick="exportCSV()" title="Export results to CSV">⬇ Export</button>
 </header>
 
 <!-- ── Settings bar ── -->
@@ -383,9 +231,17 @@
     <input type="checkbox" id="use-prony" onchange="toggleProny()">
     Full Prony Analysis
   </label>
+  <div class="sep"></div>
+  <div id="col-select-row">
+    <label>Time col:</label>
+    <select id="col-time"></select>
+    <label>Signal col:</label>
+    <select id="col-signal"></select>
+    <button class="btn" style="padding:2px 8px;font-size:10px" onclick="calculate()">Apply</button>
+  </div>
 </div>
 
-<!-- ── Prony slider panel ── -->
+<!-- ── Prony sliders ── -->
 <div id="prony-panel">
   <div class="slider-group">
     <label>Modes</label>
@@ -407,17 +263,82 @@
 <!-- ── Main layout ── -->
 <div id="main">
   <div id="input-pane">
-    <div class="pane-header"><div class="dot"></div>INPUT DATA</div>
+    <div class="pane-header">
+      <div class="dot"></div>INPUT DATA
+      <div class="actions">
+        <button class="btn" style="padding:2px 7px;font-size:9px" onclick="clearInput()">Clear</button>
+        <button class="btn" style="padding:2px 7px;font-size:9px" onclick="loadSample()">Sample</button>
+      </div>
+    </div>
     <textarea id="input-box" placeholder="0.000   100.000&#10;0.020   102.345&#10;0.040   98.123&#10;..."></textarea>
   </div>
   <div id="output-pane">
-    <div class="pane-header"><div class="dot" style="background:var(--warn)"></div>RESULTS</div>
-    <div id="output-box">Results will appear here after Calculate.</div>
+    <div class="pane-header">
+      <div class="dot" style="background:var(--warn)"></div>RESULTS
+    </div>
+    <div id="output-box">Results will appear here after Calculate.
+
+Keyboard shortcut: press Enter (when not in text area) to run.</div>
   </div>
+
+  <!-- right: tabbed chart pane -->
   <div id="chart-pane">
-    <div class="pane-header" style="border-left:1px solid var(--border)"><div class="dot" style="background:var(--accent)"></div>SIGNAL &amp; FIT</div>
-    <div id="chart-container">
-      <canvas id="main-chart"></canvas>
+    <div class="tab-bar">
+      <div class="tab active" onclick="switchTab('signal')">Signal &amp; Fit</div>
+      <div class="tab" onclick="switchTab('psd')">PSD / Spectrum</div>
+      <div class="tab" onclick="switchTab('metrics')">Metrics Dashboard</div>
+    </div>
+
+    <!-- Tab 1: main signal chart -->
+    <div id="tab-signal" class="tab-panel active">
+      <!-- Toolbar -->
+      <div id="chart-toolbar">
+        <span class="tb-label">Interact</span>
+        <button class="tb-btn active" id="tb-pan" onclick="setChartMode('pan')" title="Pan (drag to move)">✋ Pan</button>
+        <button class="tb-btn" id="tb-zoom" onclick="setChartMode('zoom')" title="Box zoom">🔍 Zoom</button>
+        <button class="tb-btn" id="tb-reset" onclick="resetZoom()" title="Reset zoom">⌂ Reset</button>
+        <div class="tb-sep"></div>
+        <span class="tb-label">Prony Window</span>
+        <button class="tb-btn" id="tb-window" onclick="toggleWindowMode()" title="Drag handles on chart to set Prony analysis window">◧ Set Window</button>
+        <button class="tb-btn" id="tb-clear-win" onclick="clearWindowSelection()" title="Clear manual window — revert to auto">✕ Clear</button>
+        <div class="tb-sep"></div>
+        <span style="font-size:9px;color:var(--muted)">Scroll = zoom Y &nbsp;|&nbsp; Shift+scroll = zoom X &nbsp;|&nbsp; Drag = pan</span>
+      </div>
+      <!-- Prony window info strip -->
+      <div id="prony-window-strip">
+        Window: <span id="pw-t0">—</span>s → <span id="pw-t1">—</span>s &nbsp;|&nbsp;
+        Samples: <span id="pw-n">—</span> &nbsp;|&nbsp;
+        Duration: <span id="pw-dur">—</span>s
+        <span class="pw-hint">&nbsp; Drag the blue handles to adjust. Re-run Calculate to apply.</span>
+      </div>
+      <!-- Chart + overlay -->
+      <div id="chart-overlay-wrap">
+        <div id="chart-container">
+          <canvas id="main-chart"></canvas>
+          <canvas id="handle-canvas"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 2: PSD -->
+    <div id="tab-psd" class="tab-panel">
+      <div id="psd-container">
+        <canvas id="psd-chart"></canvas>
+      </div>
+      <div id="psd-info">
+        Dominant freq: <span id="psd-dom">—</span> &nbsp;|&nbsp;
+        SNR est.: <span id="psd-snr">—</span> dB &nbsp;|&nbsp;
+        Nyquist: <span id="psd-nyq">—</span> Hz
+      </div>
+    </div>
+
+    <!-- Tab 3: metrics dashboard -->
+    <div id="tab-metrics" class="tab-panel">
+      <div id="metrics-panel">
+        <div style="color:var(--muted);font-size:11px;padding:20px">
+          Run a calculation to populate the metrics dashboard.
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -426,21 +347,24 @@
 <div id="statusbar">
   <div>Samples: <span id="st-samples">—</span></div>
   <div>Duration: <span id="st-duration">—</span></div>
+  <div>Fs: <span id="st-fs">—</span> Hz</div>
   <div>Δt: <span id="st-dt">—</span></div>
   <div>Mode: <span id="st-mode">—</span></div>
   <div id="st-r2-wrap" style="display:none">R²: <span id="st-r2">—</span></div>
+  <div id="st-rmse-wrap" style="display:none">RMSE: <span id="st-rmse">—</span></div>
+  <div id="st-nonuniform" style="display:none" class="warn-text">⚠ Non-uniform sampling detected</div>
+  <div id="st-columns" style="display:none">Columns: <span id="st-col-count">—</span></div>
 </div>
 
 <div id="toast"></div>
 
 <script>
 // ════════════════════════════════════════════════════════════════════
-//  CONSTANTS  (mirrors damping_tool.py)
+//  CONSTANTS
 // ════════════════════════════════════════════════════════════════════
 const STEADY_STATE_TAIL = 50;
-const SG_POLY_ORDER     = 2;
-const MIN_PEAKS         = 1;
-const MAX_PEAKS         = 16;
+const SG_POLY_ORDER = 2;
+const MIN_PEAKS = 1, MAX_PEAKS = 16;
 const COMPLIANCE_MIN_DAMPING_RATIO = 0.10;
 const COMPLIANCE_MAX_HALVING_TIME  = 5.00;
 const PRONY_FREQ_MIN_HZ = 0.10;
@@ -449,27 +373,38 @@ const PRONY_FREQ_MAX_HZ = 5.00;
 // ════════════════════════════════════════════════════════════════════
 //  STATE
 // ════════════════════════════════════════════════════════════════════
-let cachedSignal = null;   // SignalData
-let chart        = null;   // Chart.js instance
-let debounceId   = null;
+let cachedSignal  = null;
+let cachedPeakRes = null;
+let cachedPronyRes= null;
+let chart = null, psdChart = null;
+let debounceId = null;
+let isDark = true;
+let lastExportData = null;  // { type, rows, headers }
+let parsedColumns = null;   // raw columns from multi-column CSV
+
+// ── Prony window selection state ──────────────────────────────────
+let manualWindowT0 = null;   // user-dragged start time (null = auto)
+let manualWindowT1 = null;   // user-dragged end time   (null = auto)
+let windowModeActive = false;
+let chartMode = 'pan';       // 'pan' | 'zoom'
+// Handle drag state
+let hdl = { dragging:null, hoverHandle:null };  // dragging: 'left'|'right'|null
 
 // ════════════════════════════════════════════════════════════════════
 //  UI HELPERS
 // ════════════════════════════════════════════════════════════════════
 function showToast(msg) {
   const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.style.display = 'block';
+  t.textContent = msg; t.style.display = 'block';
   clearTimeout(showToast._id);
-  showToast._id = setTimeout(() => t.style.display = 'none', 4000);
+  showToast._id = setTimeout(() => t.style.display='none', 4500);
 }
-function writeOutput(txt) {
-  document.getElementById('output-box').textContent = txt;
-}
+function writeOutput(txt) { document.getElementById('output-box').textContent = txt; }
 function setStatus(samples, duration, dt, mode) {
   document.getElementById('st-samples').textContent  = samples ?? '—';
-  document.getElementById('st-duration').textContent = duration != null ? duration.toFixed(3)+'s' : '—';
-  document.getElementById('st-dt').textContent       = dt != null ? dt.toFixed(4)+'s' : '—';
+  document.getElementById('st-duration').textContent = duration!=null ? duration.toFixed(3)+'s' : '—';
+  document.getElementById('st-dt').textContent       = dt!=null ? dt.toFixed(5)+'s' : '—';
+  document.getElementById('st-fs').textContent       = dt>0 ? (1/dt).toFixed(2) : '—';
   document.getElementById('st-mode').textContent     = mode ?? '—';
 }
 function onSlider(el, valId) {
@@ -479,212 +414,316 @@ function onSlider(el, valId) {
 function toggleProny() {
   const on = document.getElementById('use-prony').checked;
   document.getElementById('prony-panel').classList.toggle('visible', on);
+  if (!on) {
+    // Leaving Prony mode — hide window strip
+    document.getElementById('prony-window-strip').classList.remove('visible');
+    if (windowModeActive) toggleWindowMode();
+  }
+}
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t,i) => {
+    const names = ['signal','psd','metrics'];
+    t.classList.toggle('active', names[i]===name);
+  });
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  if (name==='signal' && chart) { resizeChart(); chart.resize(); }
+  if (name==='psd' && psdChart) { resizePSD(); psdChart.resize(); }
+}
+function clearInput() { document.getElementById('input-box').value = ''; cachedSignal=null; }
+
+// Sample data: damped oscillation ζ=0.15, f=0.4 Hz
+function loadSample() {
+  const lines = ['# Sample: damped inter-area oscillation  f=0.40 Hz  zeta=0.15'];
+  const f=0.40, zeta=0.15, omega=2*Math.PI*f, sigma=zeta*omega;
+  const amp=80, offset=500;
+  for (let i=0;i<=500;i++) {
+    const t=(i*0.04).toFixed(3);
+    const v=(offset + amp*Math.exp(-sigma*i*0.04)*Math.cos(omega*i*0.04) + (Math.random()-0.5)*1.5).toFixed(4);
+    lines.push(t+'   '+v);
+  }
+  document.getElementById('input-box').value = lines.join('\n');
 }
 
 // ════════════════════════════════════════════════════════════════════
-//  FILE LOADING
+//  MULTI-COLUMN CSV SUPPORT
 // ════════════════════════════════════════════════════════════════════
-document.getElementById('file-input').addEventListener('change', function() {
-  const file = this.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    document.getElementById('input-box').value = e.target.result;
-  };
-  reader.readAsText(file);
-  this.value = '';
-});
-
-// ════════════════════════════════════════════════════════════════════
-//  SIGNAL PROCESSING  (JavaScript port of SignalProcessor)
-// ════════════════════════════════════════════════════════════════════
-
-// ── parse ─────────────────────────────────────────────────────────
-function parseTwoColumnText(text) {
-  const time = [], vals = [];
-  for (const line of text.split('\n')) {
-    const tokens = line.trim().split(/[\s,]+/);
+function parseAllColumns(text) {
+  // Returns { headers:string[], columns:Float64Array[], nRows }
+  const lines = text.split('\n').filter(l => l.trim());
+  let headers = null, rows = [];
+  for (const line of lines) {
+    const tokens = line.trim().split(/[\s,\t]+/);
     if (tokens.length < 2) continue;
-    const t = parseFloat(tokens[0]), v = parseFloat(tokens[1]);
-    if (isNaN(t) || isNaN(v)) continue;
-    time.push(t); vals.push(v);
+    const nums = tokens.map(parseFloat);
+    if (nums.some(isNaN)) {
+      // Potential header row
+      if (!headers) headers = tokens;
+      continue;
+    }
+    rows.push(nums);
   }
-  if (time.length < 2) throw new Error(`At least 2 numeric rows required; found ${time.length}.`);
-  return [new Float64Array(time), new Float64Array(vals)];
+  if (!rows.length) throw new Error('No numeric data found.');
+  const nCols = rows[0].length;
+  // Pad short rows
+  rows = rows.filter(r => r.length >= 2);
+  const columns = Array.from({length:nCols}, (_,ci) => new Float64Array(rows.map(r => r[ci]??NaN)));
+  if (!headers) headers = Array.from({length:nCols}, (_,i) => `Col${i+1}`);
+  return { headers, columns, nRows: rows.length };
 }
 
-// ── Savitzky-Golay (order 2, any odd window) ──────────────────────
+function updateColumnSelectors(headers) {
+  const row = document.getElementById('col-select-row');
+  const selT = document.getElementById('col-time');
+  const selS = document.getElementById('col-signal');
+  selT.innerHTML = selS.innerHTML = '';
+  headers.forEach((h,i) => {
+    selT.add(new Option(h, i));
+    selS.add(new Option(h, i));
+  });
+  selT.value = 0;
+  selS.value = Math.min(1, headers.length-1);
+  row.classList.toggle('visible', headers.length > 2);
+  document.getElementById('st-columns').style.display = '';
+  document.getElementById('st-col-count').textContent = headers.length;
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  SIGNAL PROCESSING
+// ════════════════════════════════════════════════════════════════════
 function savgolFilter(y, w) {
-  // Compute S-G coefficients for polynomial order 2 via convolution
-  // For small windows we use exact formula; for larger we use LS per window.
-  const n = y.length;
-  const hw = (w - 1) / 2;
-  const out = new Float64Array(n);
-
-  // Pre-compute convolution weights for interior points
-  // Using the standard order-2 SG formula weights
-  const weights = [];
-  for (let i = -hw; i <= hw; i++) {
-    // Gram polynomial approach for order 2
-    // weight(i) = (3m²+3m-1-5i²) / ((2m-1)(2m+1)(2m+3)/3) * 3  where m=hw
-    const m = hw;
-    const num = (3*m*m + 3*m - 1 - 5*i*i);
-    const den = (2*m-1) * (2*m+1) * (2*m+3) / 3.0;
-    weights.push(num / den);
+  const n=y.length, hw=(w-1)/2;
+  const out=new Float64Array(n);
+  const weights=[];
+  for (let i=-hw;i<=hw;i++) {
+    const m=hw, num=(3*m*m+3*m-1-5*i*i), den=(2*m-1)*(2*m+1)*(2*m+3)/3.0;
+    weights.push(num/den);
   }
-
-  for (let j = 0; j < n; j++) {
-    let s = 0;
-    for (let k = 0; k < w; k++) {
-      let idx = j - hw + k;
-      // mirror boundary
-      if (idx < 0) idx = -idx;
-      if (idx >= n) idx = 2*(n-1) - idx;
-      idx = Math.max(0, Math.min(n-1, idx));
-      s += weights[k] * y[idx];
+  for (let j=0;j<n;j++) {
+    let s=0;
+    for (let k=0;k<w;k++) {
+      let idx=j-hw+k;
+      if (idx<0) idx=-idx;
+      if (idx>=n) idx=2*(n-1)-idx;
+      idx=Math.max(0,Math.min(n-1,idx));
+      s+=weights[k]*y[idx];
     }
-    out[j] = s;
+    out[j]=s;
   }
   return out;
 }
 
-// ── preprocess ────────────────────────────────────────────────────
-function preprocess(time, values, removeOffset, smoothWin) {
-  if (values.length < SG_POLY_ORDER + 2)
-    throw new Error(`Signal too short (${values.length} samples).`);
-
-  let offset = 0;
-  if (removeOffset) {
-    const tail = Math.min(STEADY_STATE_TAIL, values.length);
-    let sum = 0;
-    for (let i = values.length - tail; i < values.length; i++) sum += values[i];
-    offset = sum / tail;
-  }
-
-  const detrended = new Float64Array(values.length);
-  for (let i = 0; i < values.length; i++) detrended[i] = values[i] - offset;
-
-  let w = Math.max(smoothWin, SG_POLY_ORDER + 1);
-  if (w % 2 === 0) w++;
-  const maxW = values.length % 2 !== 0 ? values.length : values.length - 1;
-  w = Math.min(w, maxW);
-
-  const smoothed = savgolFilter(detrended, w);
-
-  return { time, raw: values, detrended, smoothed, steadyStateOffset: offset };
+function checkUniformSampling(time) {
+  if (time.length < 3) return { uniform:true, dt:time[1]-time[0] };
+  const dts = [];
+  for (let i=1;i<time.length;i++) dts.push(time[i]-time[i-1]);
+  const dtMean = dts.reduce((a,b)=>a+b,0)/dts.length;
+  const dtMax  = Math.max(...dts), dtMin = Math.min(...dts);
+  const uniform = (dtMax-dtMin)/dtMean < 0.01;  // <1% variation
+  return { uniform, dt:dtMean, dtMin, dtMax };
 }
 
-// ── find peaks ────────────────────────────────────────────────────
-function findPeaks(arr, prominence) {
-  const peaks = [];
-  for (let i = 1; i < arr.length - 1; i++) {
-    if (arr[i] > arr[i-1] && arr[i] > arr[i+1]) peaks.push(i);
+function preprocess(time, values, removeOffset, smoothWin) {
+  if (values.length < SG_POLY_ORDER+2) throw new Error(`Signal too short (${values.length} samples).`);
+  let offset=0;
+  if (removeOffset) {
+    const tail=Math.min(STEADY_STATE_TAIL, values.length);
+    let sum=0; for (let i=values.length-tail;i<values.length;i++) sum+=values[i];
+    offset=sum/tail;
   }
-  if (prominence <= 0) return peaks;
-  // Filter by prominence: peak value minus max of left/right base
+  const detrended=new Float64Array(values.length);
+  for (let i=0;i<values.length;i++) detrended[i]=values[i]-offset;
+  let w=Math.max(smoothWin, SG_POLY_ORDER+1);
+  if (w%2===0) w++;
+  const maxW=values.length%2!==0?values.length:values.length-1;
+  w=Math.min(w,maxW);
+  const smoothed=savgolFilter(detrended,w);
+  return {time, raw:values, detrended, smoothed, steadyStateOffset:offset};
+}
+
+function findPeaks(arr, prominence) {
+  const peaks=[];
+  for (let i=1;i<arr.length-1;i++) if (arr[i]>arr[i-1]&&arr[i]>arr[i+1]) peaks.push(i);
+  if (prominence<=0) return peaks;
   return peaks.filter(p => {
-    let leftMin  = arr[p], rightMin = arr[p];
-    for (let i = p-1; i >= 0; i--) { if (arr[i] < leftMin) leftMin = arr[i]; if (arr[i] > arr[p]) break; }
-    for (let i = p+1; i < arr.length; i++) { if (arr[i] < rightMin) rightMin = arr[i]; if (arr[i] > arr[p]) break; }
-    return (arr[p] - Math.max(leftMin, rightMin)) >= prominence;
+    let lMin=arr[p], rMin=arr[p];
+    for (let i=p-1;i>=0;i--) { if (arr[i]<lMin) lMin=arr[i]; if (arr[i]>arr[p]) break; }
+    for (let i=p+1;i<arr.length;i++) { if (arr[i]<rMin) rMin=arr[i]; if (arr[i]>arr[p]) break; }
+    return (arr[p]-Math.max(lMin,rMin))>=prominence;
   });
 }
 
-// ── Peak Envelope ─────────────────────────────────────────────────
+// ── Exponential decay envelope through peaks ──────────────────────
+// Fits y = A * exp(-σ * t) through peak values via linear regression on log(y) = log(A) - σt
+function fitExponentialEnvelope(peakTimes, peakValues) {
+  const n=peakValues.length;
+  if (n<2) return null;
+  // Filter positive values only (safe for log)
+  const pts = peakTimes.map((t,i)=>({t,v:peakValues[i]})).filter(p=>p.v>0);
+  if (pts.length<2) return null;
+  // Linear regression: ln(v) = ln(A) - σ*t
+  const lny = pts.map(p=>Math.log(p.v));
+  const t   = pts.map(p=>p.t);
+  const n2  = pts.length;
+  const sumT=t.reduce((a,b)=>a+b,0), sumY=lny.reduce((a,b)=>a+b,0);
+  const sumTY=t.reduce((a,v,i)=>a+v*lny[i],0);
+  const sumT2=t.reduce((a,v)=>a+v*v,0);
+  const slope=(n2*sumTY-sumT*sumY)/(n2*sumT2-sumT*sumT);
+  const intercept=(sumY-slope*sumT)/n2;
+  const A=Math.exp(intercept), sigma=-slope;
+  return {A, sigma};
+}
+
 function runPeakEnvelope(signalData, numPeaks, prominence) {
-  const { smoothed, time, steadyStateOffset } = signalData;
-  const methodLabel = steadyStateOffset !== 0
+  const {smoothed, time, steadyStateOffset} = signalData;
+  const methodLabel = steadyStateOffset!==0
     ? 'OFFSET METHOD (Steady-State Removed)'
     : 'DIRECT METHOD (No Offset Removal)';
 
-  let peakIdx = findPeaks(smoothed, prominence);
-  if (peakIdx.length === 0) throw new Error('No peaks detected. Try reducing Prominence.');
+  let peakIdx=findPeaks(smoothed, prominence);
+  if (!peakIdx.length) throw new Error('No peaks detected. Try reducing Prominence.');
+  peakIdx=peakIdx.filter(i=>smoothed[i]>0);
+  if (peakIdx.length<2) throw new Error(`Only ${peakIdx.length} positive peak(s); need ≥ 2.`);
 
-  peakIdx = peakIdx.filter(i => smoothed[i] > 0);
-  if (peakIdx.length < 2) throw new Error(`Only ${peakIdx.length} positive peak(s); need ≥ 2. Reduce Prominence or smoothing.`);
+  const n=Math.max(MIN_PEAKS, Math.min(MAX_PEAKS, numPeaks));
+  peakIdx=peakIdx.slice(0,n);
 
-  const n = Math.max(MIN_PEAKS, Math.min(MAX_PEAKS, numPeaks));
-  peakIdx = peakIdx.slice(0, n);
+  const peakTimes  = peakIdx.map(i=>time[i]);
+  const peakValues = peakIdx.map(i=>smoothed[i]);
 
-  const peakTimes  = peakIdx.map(i => time[i]);
-  const peakValues = peakIdx.map(i => smoothed[i]);
+  // Exponential decay fit through all peaks
+  const envelope = fitExponentialEnvelope(peakTimes, peakValues);
 
-  const pairs = [];
-  const zetaList = [], sigmaList = [], halfList = [];
+  const pairs=[], zetaList=[], sigmaList=[], halfList=[], freqList=[];
 
-  for (let i = 0; i < peakValues.length - 1; i++) {
-    const y1 = peakValues[i], y2 = peakValues[i+1];
-    const t1 = peakTimes[i],  t2 = peakTimes[i+1];
-    if (y1 <= 0 || y2 <= 0) continue;
-    const delta  = Math.log(y1 / y2);
-    const dt     = t2 - t1;
-    const sigma  = delta / dt;
-    const zeta   = delta / Math.sqrt(4 * Math.PI**2 + delta**2);
-    const halfT  = sigma > 0 ? Math.LN2 / sigma : Infinity;
-    const freqHz = 1.0 / dt;
-    pairs.push({ pairIndex:i+1, time1:t1, peak1:y1, time2:t2, peak2:y2,
-                 logDecrement:delta, sigma, dampingRatio:zeta, frequencyHz:freqHz, halvingTime:halfT });
-    zetaList.push(zeta); sigmaList.push(sigma); halfList.push(halfT);
+  for (let i=0;i<peakValues.length-1;i++) {
+    const y1=peakValues[i], y2=peakValues[i+1];
+    const t1=peakTimes[i],  t2=peakTimes[i+1];
+    if (y1<=0||y2<=0) continue;
+    const delta=Math.log(y1/y2), dt=t2-t1;
+    const sigma=delta/dt;
+    const zeta=delta/Math.sqrt(4*Math.PI**2+delta**2);
+    const halfT=sigma>0?Math.LN2/sigma:Infinity;
+    const freqHz=1.0/dt;
+    pairs.push({pairIndex:i+1,time1:t1,peak1:y1,time2:t2,peak2:y2,
+      logDecrement:delta,sigma,dampingRatio:zeta,frequencyHz:freqHz,halvingTime:halfT});
+    zetaList.push(zeta); sigmaList.push(sigma); halfList.push(halfT); freqList.push(freqHz);
   }
-  if (!pairs.length) throw new Error('All pairs skipped (non-positive). Check offset removal.');
+  if (!pairs.length) throw new Error('All pairs skipped. Check offset removal.');
 
-  const avg = arr => arr.reduce((a,b)=>a+b,0)/arr.length;
+  const avg=arr=>arr.reduce((a,b)=>a+b,0)/arr.length;
+  const std=arr=>{ const m=avg(arr); return Math.sqrt(arr.reduce((a,b)=>a+(b-m)**2,0)/arr.length); };
+
   return {
-    methodLabel, pairs, peakTimes, peakValues,
+    methodLabel, pairs, peakTimes, peakValues, envelope,
     avgDampingRatio: avg(zetaList),
+    stdDampingRatio: std(zetaList),
     avgSigma:        avg(sigmaList),
     avgHalvingTime:  avg(halfList),
+    avgFrequency:    avg(freqList),
+    stdFrequency:    std(freqList),
   };
 }
 
 // ════════════════════════════════════════════════════════════════════
-//  PRONY  (JavaScript port of _prony_decompose + run_prony)
+//  FFT-BASED PSD (Welch-style, real DFT via Cooley-Tukey)
 // ════════════════════════════════════════════════════════════════════
+function fft(re, im) {
+  // In-place Cooley-Tukey radix-2 FFT (n must be power of 2)
+  const n=re.length;
+  // Bit-reversal permutation
+  let j=0;
+  for (let i=1;i<n;i++) {
+    let bit=n>>1;
+    for (;j&bit;bit>>=1) j^=bit;
+    j^=bit;
+    if (i<j) { [re[i],re[j]]=[re[j],re[i]]; [im[i],im[j]]=[im[j],im[i]]; }
+  }
+  // Butterfly operations
+  for (let len=2;len<=n;len<<=1) {
+    const ang=-2*Math.PI/len;
+    const wRe=Math.cos(ang), wIm=Math.sin(ang);
+    for (let i=0;i<n;i+=len) {
+      let curRe=1, curIm=0;
+      for (let k=0;k<len/2;k++) {
+        const uRe=re[i+k], uIm=im[i+k];
+        const vRe=re[i+k+len/2]*curRe-im[i+k+len/2]*curIm;
+        const vIm=re[i+k+len/2]*curIm+im[i+k+len/2]*curRe;
+        re[i+k]=uRe+vRe; im[i+k]=uIm+vIm;
+        re[i+k+len/2]=uRe-vRe; im[i+k+len/2]=uIm-vIm;
+        const newRe=curRe*wRe-curIm*wIm;
+        curIm=curRe*wIm+curIm*wRe; curRe=newRe;
+      }
+    }
+  }
+}
 
-// Complex number helpers
+function computePSD(signal, dt) {
+  // Next power-of-2 length, up to 16384
+  let N=1; while (N<signal.length&&N<16384) N<<=1;
+  // Hann window
+  const re=new Float64Array(N), im=new Float64Array(N);
+  let wSum=0;
+  for (let i=0;i<Math.min(signal.length,N);i++) {
+    const w=0.5*(1-Math.cos(2*Math.PI*i/(N-1)));
+    re[i]=signal[i]*w; wSum+=w*w;
+  }
+  fft(re,im);
+  // One-sided PSD: |X|²/(fs * N * sum(w²))
+  const fs=1/dt, psd=[], freqs=[];
+  const nHalf=Math.floor(N/2)+1;
+  for (let k=0;k<nHalf;k++) {
+    let mag2=re[k]*re[k]+im[k]*im[k];
+    if (k>0&&k<nHalf-1) mag2*=2;  // fold negative freqs
+    psd.push(mag2/(fs*N*wSum));
+    freqs.push(k*fs/N);
+  }
+  return {freqs, psd, fs, N};
+}
+
+function estimateSNR(psd, freqs, domIdx) {
+  // Simple SNR: peak power vs mean of everything else
+  const peakPow=psd[domIdx];
+  const noise=psd.filter((_,i)=>Math.abs(i-domIdx)>3);
+  if (!noise.length) return null;
+  const noiseMean=noise.reduce((a,b)=>a+b,0)/noise.length;
+  return 10*Math.log10(peakPow/(noiseMean||1e-30));
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  PRONY (same algorithm as before, no changes)
+// ════════════════════════════════════════════════════════════════════
 const C = {
-  add:  (a,b) => ({re: a.re+b.re, im: a.im+b.im}),
-  sub:  (a,b) => ({re: a.re-b.re, im: a.im-b.im}),
-  mul:  (a,b) => ({re: a.re*b.re - a.im*b.im, im: a.re*b.im + a.im*b.re}),
-  div:  (a,b) => { const d=b.re*b.re+b.im*b.im; return {re:(a.re*b.re+a.im*b.im)/d, im:(a.im*b.re-a.re*b.im)/d}; },
-  exp:  (a)   => { const e=Math.exp(a.re); return {re: e*Math.cos(a.im), im: e*Math.sin(a.im)}; },
-  log:  (a)   => { const r=Math.sqrt(a.re*a.re+a.im*a.im); return {re: r>1e-300?Math.log(r):-690, im: Math.atan2(a.im,a.re)}; },
-  abs:  (a)   => Math.sqrt(a.re*a.re+a.im*a.im),
-  conj: (a)   => ({re:a.re, im:-a.im}),
-  scale:(a,s) => ({re:a.re*s, im:a.im*s}),
+  add:(a,b)=>({re:a.re+b.re,im:a.im+b.im}),
+  sub:(a,b)=>({re:a.re-b.re,im:a.im-b.im}),
+  mul:(a,b)=>({re:a.re*b.re-a.im*b.im,im:a.re*b.im+a.im*b.re}),
+  div:(a,b)=>{const d=b.re*b.re+b.im*b.im;return{re:(a.re*b.re+a.im*b.im)/d,im:(a.im*b.re-a.re*b.im)/d}},
+  exp:(a)=>{const e=Math.exp(a.re);return{re:e*Math.cos(a.im),im:e*Math.sin(a.im)}},
+  log:(a)=>{const r=Math.sqrt(a.re*a.re+a.im*a.im);return{re:r>1e-300?Math.log(r):-690,im:Math.atan2(a.im,a.re)}},
+  abs:(a)=>Math.sqrt(a.re*a.re+a.im*a.im),
+  scale:(a,s)=>({re:a.re*s,im:a.im*s}),
 };
 
-// Simple least-squares solver for real systems using normal equations + Cholesky-like
-// For small m, this is fine.  We use the full matrix formulation.
 function leastSquaresReal(A, b) {
-  // Normal equations: At*A*x = At*b
-  const m = A[0].length, n = A.length;
-  // At*A
-  const AtA = Array.from({length:m}, () => new Float64Array(m));
-  const Atb = new Float64Array(m);
+  const m=A[0].length, n=A.length;
+  const AtA=Array.from({length:m},()=>new Float64Array(m));
+  const Atb=new Float64Array(m);
   for (let i=0;i<m;i++) for (let j=0;j<m;j++) for (let k=0;k<n;k++) AtA[i][j]+=A[k][i]*A[k][j];
   for (let i=0;i<m;i++) for (let k=0;k<n;k++) Atb[i]+=A[k][i]*b[k];
-  // Gaussian elimination with partial pivoting
-  const aug = AtA.map((row,i) => [...row, Atb[i]]);
+  const aug=AtA.map((row,i)=>[...row,Atb[i]]);
   for (let col=0;col<m;col++) {
     let maxR=col; for (let r=col+1;r<m;r++) if (Math.abs(aug[r][col])>Math.abs(aug[maxR][col])) maxR=r;
     [aug[col],aug[maxR]]=[aug[maxR],aug[col]];
     const piv=aug[col][col];
     if (Math.abs(piv)<1e-14) continue;
-    for (let r=col+1;r<m;r++) { const f=aug[r][col]/piv; for (let c=col;c<=m;c++) aug[r][c]-=f*aug[col][c]; }
+    for (let r=col+1;r<m;r++) {const f=aug[r][col]/piv;for (let c=col;c<=m;c++) aug[r][c]-=f*aug[col][c];}
   }
   const x=new Float64Array(m);
-  for (let i=m-1;i>=0;i--) { x[i]=aug[i][m]; for (let j=i+1;j<m;j++) x[i]-=aug[i][j]*x[j]; x[i]/=aug[i][i]||1e-15; }
+  for (let i=m-1;i>=0;i--) {x[i]=aug[i][m];for (let j=i+1;j<m;j++) x[i]-=aug[i][j]*x[j];x[i]/=aug[i][i]||1e-15;}
   return x;
 }
 
-// Complex Vandermonde least-squares: solve V * a = s  (s real, a complex)
 function leastSquaresComplex(vandermonde, signal) {
-  // vandermonde: n x m array of complex; signal: n real
-  // Convert to real system: split real and imag parts
-  // V_real * a_real - V_imag * a_imag = s
-  // V_imag * a_real + V_real * a_imag = 0  (but signal is real, so imag residual = 0)
-  // Stack as [V_real | -V_imag; V_imag | V_real] * [a_re; a_im] = [s; 0]
   const n=signal.length, m=vandermonde[0].length;
   const A=[], b=[];
   for (let i=0;i<n;i++) {
@@ -700,255 +739,227 @@ function leastSquaresComplex(vandermonde, signal) {
     A.push(row); b.push(0);
   }
   const x=leastSquaresReal(A,b);
-  const amps=[];
-  for (let j=0;j<m;j++) amps.push({re:x[j], im:x[j+m]});
-  return amps;
-}
-
-// Polynomial roots via companion matrix eigenvalues (power iteration / QR not needed for m<=20)
-// We use a simple companion matrix + numerical eigenvalue approach
-function polyRoots(coeffs) {
-  // coeffs in descending order: coeffs[0]*x^n + ... + coeffs[n]
-  // Build companion matrix, find eigenvalues via iterative deflation
-  const n = coeffs.length - 1;
-  if (n === 0) return [];
-  const a = coeffs.map(c => c / coeffs[0]);  // monic
-
-  // Companion matrix C: n x n
-  // C[i][n-1] = -a[n-i],  C[i][i-1] = 1 for i>0
-  const C_mat = Array.from({length:n}, () => new Array(n).fill(0));
-  for (let i=0;i<n;i++) C_mat[i][n-1] = -a[n-i];   // last column: -a[n], -a[n-1],...,-a[1]
-  // Oops, standard form: C[i][i+1]=1 (superdiagonal), C[n-1][i]=-a[n-i]/(a[0] already 1)
-  // Let's redo properly:
-  const Cm = Array.from({length:n}, () => new Float64Array(n));
-  for (let i=1;i<n;i++) Cm[i][i-1] = 1;   // subdiagonal
-  for (let j=0;j<n;j++) Cm[0][j] = -a[j+1]; // top row
-
-  // Use the QR algorithm (simple Francis double-step) would be ideal,
-  // but for m<=20 we use a simple power-method per root + deflation.
-  // Actually: use the Aberth–Ehrlich method for speed
-  return aberthRoots(a, n);
+  return Array.from({length:m},(_,j)=>({re:x[j],im:x[j+m]}));
 }
 
 function aberthRoots(monic, n) {
-  // monic[0]=1, monic[1..n] = coefficients of degree n-1 down to 0
-  const roots = [];
-  // Initial guesses: evenly spaced on unit circle
+  const roots=[];
   for (let k=0;k<n;k++) {
-    const angle = 2*Math.PI*k/n + 0.1;
-    roots.push({re: Math.cos(angle)*0.9, im: Math.sin(angle)*0.9});
+    const a=2*Math.PI*k/n+0.1;
+    roots.push({re:Math.cos(a)*0.9,im:Math.sin(a)*0.9});
   }
-
   function evalPoly(z) {
-    // Horner's method
-    let val = {re:monic[0], im:0};
-    for (let i=1;i<=n;i++) {
-      val = C.add(C.mul(val, z), {re:monic[i]||0, im:0});
-    }
-    return val;
+    let v={re:monic[0],im:0};
+    for (let i=1;i<=n;i++) v=C.add(C.mul(v,z),{re:monic[i]||0,im:0});
+    return v;
   }
-  function evalPolyDeriv(z) {
-    let val = {re:monic[0]*n, im:0};
-    for (let i=1;i<n;i++) {
-      val = C.add(C.mul(val, z), {re:monic[i]*(n-i), im:0});
-    }
-    return val;
+  function evalDeriv(z) {
+    let v={re:monic[0]*n,im:0};
+    for (let i=1;i<n;i++) v=C.add(C.mul(v,z),{re:monic[i]*(n-i),im:0});
+    return v;
   }
-
-  for (let iter=0; iter<80; iter++) {
+  for (let iter=0;iter<80;iter++) {
     for (let k=0;k<n;k++) {
-      const fz = evalPoly(roots[k]);
-      const fp = evalPolyDeriv(roots[k]);
-      if (C.abs(fz) < 1e-14) continue;
-      let sum = {re:0, im:0};
+      const fz=evalPoly(roots[k]), fp=evalDeriv(roots[k]);
+      if (C.abs(fz)<1e-14) continue;
+      let sum={re:0,im:0};
       for (let j=0;j<n;j++) if (j!==k) {
-        const diff = C.sub(roots[k], roots[j]);
-        if (C.abs(diff) < 1e-15) continue;
-        sum = C.add(sum, C.div({re:1,im:0}, diff));
+        const d=C.sub(roots[k],roots[j]);
+        if (C.abs(d)<1e-15) continue;
+        sum=C.add(sum,C.div({re:1,im:0},d));
       }
-      const denom = C.sub(C.div(fp, fz), sum);
-      if (C.abs(denom) < 1e-15) continue;
-      const step = C.div({re:1,im:0}, denom);
-      roots[k] = C.sub(roots[k], step);
+      const denom=C.sub(C.div(fp,fz),sum);
+      if (C.abs(denom)<1e-15) continue;
+      roots[k]=C.sub(roots[k],C.div({re:1,im:0},denom));
     }
   }
   return roots;
 }
 
+function pronyDecompose(timeWindow, sigWindow, numModes) {
+  const n=sigWindow.length, m=numModes;
+  if (n<=m) throw new Error(`Window (${n}) must exceed modes (${m}).`);
+  const H=[], tgt=[];
+  for (let i=0;i<n-m;i++) {
+    const row=[];
+    for (let j=0;j<m;j++) row.push(sigWindow[i+(m-1-j)]);
+    H.push(row); tgt.push(sigWindow[i+m]);
+  }
+  const d=leastSquaresReal(H,tgt);
+  const charPoly=new Float64Array(m+1);
+  charPoly[0]=1;
+  for (let i=0;i<m;i++) charPoly[i+1]=-d[i];
+  const roots=aberthRoots(Array.from(charPoly), m);
+  const dt=timeWindow[1]-timeWindow[0];
+  const exponents=roots.map(z=>{
+    const absZ=C.abs(z);
+    return C.scale(C.log(absZ>1e-12?z:{re:1e-12,im:0}),1/dt);
+  });
+  const V=[];
+  for (let i=0;i<n;i++) {
+    V.push(roots.map(r=>{
+      const safeR=C.abs(r)>1e-12?r:{re:1e-12,im:0};
+      let val={re:1,im:0};
+      for (let k=0;k<i;k++) val=C.mul(val,safeR);
+      return val;
+    }));
+  }
+  const amplitudes=leastSquaresComplex(V, Array.from(sigWindow));
+  return {amplitudes, exponents};
+}
+
 function findActiveStart(signal, energyFraction) {
-  let peak = 0;
-  for (const v of signal) if (Math.abs(v) > peak) peak = Math.abs(v);
-  if (peak === 0) return 0;
-  const thresh = energyFraction * peak;
-  for (let i=0; i<signal.length; i++) if (Math.abs(signal[i]) >= thresh) return i;
+  let peak=0; for (const v of signal) if (Math.abs(v)>peak) peak=Math.abs(v);
+  if (peak===0) return 0;
+  const thresh=energyFraction*peak;
+  for (let i=0;i<signal.length;i++) if (Math.abs(signal[i])>=thresh) return i;
   return 0;
 }
 
-function pronyDecompose(timeWindow, sigWindow, numModes) {
-  const n = sigWindow.length, m = numModes;
-  if (n <= m) throw new Error(`Window length (${n}) must exceed num_modes (${m}).`);
-
-  // ── Step 1: Hankel matrix least-squares ────────────────────────
-  // Hankel[i][j] = sigWindow[i + (m-1-j)], shape (n-m, m)
-  const H = [], tgt = [];
-  for (let i=0; i<n-m; i++) {
-    const row = [];
-    for (let j=0; j<m; j++) row.push(sigWindow[i + (m-1-j)]);
-    H.push(row);
-    tgt.push(sigWindow[i+m]);
-  }
-  const d = leastSquaresReal(H, tgt);
-
-  // ── Step 2: Characteristic polynomial roots ─────────────────────
-  // z^m - d[0]*z^{m-1} - d[1]*z^{m-2} - ... - d[m-1] = 0
-  const charPoly = new Float64Array(m+1);
-  charPoly[0] = 1;
-  for (let i=0; i<m; i++) charPoly[i+1] = -d[i];  // ← correct (no reversal)
-  const roots = polyRoots(Array.from(charPoly));
-
-  // ── Step 3: Continuous-time exponents ────────────────────────────
-  const dt = timeWindow[1] - timeWindow[0];
-  const exponents = roots.map(z => {
-    const absZ = C.abs(z);
-    const safeZ = absZ > 1e-12 ? z : {re:1e-12, im:0};
-    return C.scale(C.log(safeZ), 1/dt);
-  });
-
-  // ── Step 4: Vandermonde amplitude fit ────────────────────────────
-  // V[i][k] = roots[k]^i
-  const V = [];
-  for (let i=0; i<n; i++) {
-    const row = roots.map(r => {
-      const absR = C.abs(r);
-      const safeR = absR > 1e-12 ? r : {re:1e-12, im:0};
-      // r^i iteratively
-      let val = {re:1, im:0};
-      for (let k=0; k<i; k++) val = C.mul(val, safeR);
-      return val;
-    });
-    V.push(row);
-  }
-  const amplitudes = leastSquaresComplex(V, Array.from(sigWindow));
-
-  return { amplitudes, exponents };
+function timeToSampleIndex(time, t) {
+  // Binary search for nearest sample index to time t
+  let lo=0, hi=time.length-1;
+  while (lo<hi) { const mid=(lo+hi)>>1; if (time[mid]<t) lo=mid+1; else hi=mid; }
+  return Math.max(0, Math.min(time.length-1, lo));
 }
 
 function runProny(signalData, numModes, windowLength, energyFraction) {
-  const { time, detrended } = signalData;
-  const iStart = findActiveStart(detrended, energyFraction);
-  let iEnd = Math.min(iStart + windowLength, time.length);
-  if ((iEnd - iStart) <= numModes) iEnd = Math.min(iStart + numModes + 2, time.length);
+  const {time, detrended} = signalData;
+  let iStart, iEnd;
+  if (manualWindowT0!==null && manualWindowT1!==null) {
+    // User has dragged handles — override auto-detection
+    iStart = timeToSampleIndex(time, manualWindowT0);
+    iEnd   = timeToSampleIndex(time, manualWindowT1);
+    if (iEnd<=iStart) iEnd=Math.min(iStart+numModes+2, time.length);
+  } else {
+    iStart=findActiveStart(detrended, energyFraction);
+    iEnd=Math.min(iStart+windowLength, time.length);
+    if ((iEnd-iStart)<=numModes) iEnd=Math.min(iStart+numModes+2, time.length);
+  }
+  const timeWin=time.slice(iStart,iEnd), sigWin=detrended.slice(iStart,iEnd);
+  const {amplitudes, exponents}=pronyDecompose(Array.from(timeWin), Array.from(sigWin), numModes);
 
-  const timeWin = time.slice(iStart, iEnd);
-  const sigWin  = detrended.slice(iStart, iEnd);
-
-  const { amplitudes, exponents } = pronyDecompose(
-    Array.from(timeWin), Array.from(sigWin), numModes
-  );
-
-  // Reconstruct over active window
-  const t0 = timeWin[0];
-  const fittedWin = new Float64Array(timeWin.length);
-  for (let i=0; i<timeWin.length; i++) {
-    const tRel = timeWin[i] - t0;
-    let sum = 0;
-    for (let k=0; k<amplitudes.length; k++) {
-      const b = exponents[k];
-      const ex = C.exp({re: b.re*tRel, im: b.im*tRel});
-      sum += amplitudes[k].re * ex.re - amplitudes[k].im * ex.im;
+  const t0=timeWin[0];
+  const fittedWin=new Float64Array(timeWin.length);
+  for (let i=0;i<timeWin.length;i++) {
+    const tRel=timeWin[i]-t0; let sum=0;
+    for (let k=0;k<amplitudes.length;k++) {
+      const b=exponents[k], ex=C.exp({re:b.re*tRel,im:b.im*tRel});
+      sum+=amplitudes[k].re*ex.re-amplitudes[k].im*ex.im;
     }
-    fittedWin[i] = sum;
+    fittedWin[i]=sum;
   }
+  const fittedFull=new Float64Array(time.length);
+  for (let i=0;i<timeWin.length;i++) fittedFull[iStart+i]=fittedWin[i];
 
-  const fittedFull = new Float64Array(time.length);
-  for (let i=0; i<timeWin.length; i++) fittedFull[iStart+i] = fittedWin[i];
-
-  // Filter modes
-  const modes = [];
-  for (let k=0; k<amplitudes.length; k++) {
-    const amp = amplitudes[k];
-    const exp = exponents[k];
-    const dampingRate = -exp.re;  // σ (positive = decaying)
-    const angularFreq =  exp.im;  // ω (rad/s)
-    const freqHz = Math.abs(angularFreq) / (2*Math.PI);
-    if (angularFreq < 0) continue;
-    if (freqHz < PRONY_FREQ_MIN_HZ || freqHz > PRONY_FREQ_MAX_HZ) continue;
-    if (dampingRate <= 0) continue;
-    const physAmp = 2 * C.abs(amp);
-    const zeta = dampingRate / Math.sqrt(dampingRate**2 + angularFreq**2);
-    modes.push({ index:k+1, amplitude:physAmp, frequencyHz:freqHz, dampingRate, dampingRatio:zeta });
+  const modes=[];
+  for (let k=0;k<amplitudes.length;k++) {
+    const amp=amplitudes[k], exp=exponents[k];
+    const dampingRate=-exp.re, angularFreq=exp.im;
+    const freqHz=Math.abs(angularFreq)/(2*Math.PI);
+    if (angularFreq<0) continue;
+    if (freqHz<PRONY_FREQ_MIN_HZ||freqHz>PRONY_FREQ_MAX_HZ) continue;
+    if (dampingRate<=0) continue;
+    const physAmp=2*C.abs(amp);
+    const zeta=dampingRate/Math.sqrt(dampingRate**2+angularFreq**2);
+    const period=freqHz>0?1/freqHz:Infinity;
+    const unstable=zeta>1.0;  // overdamped flag
+    modes.push({index:k+1, amplitude:physAmp, frequencyHz:freqHz, period,
+                dampingRate, dampingRatio:zeta, unstable});
   }
-  modes.sort((a,b) => b.amplitude - a.amplitude);
+  modes.sort((a,b)=>b.amplitude-a.amplitude);
 
-  // R² over active window
+  // R² and RMSE over active window
   let sigMean=0; for (const v of sigWin) sigMean+=v; sigMean/=sigWin.length;
   let ssRes=0, ssTot=0;
-  for (let i=0; i<sigWin.length; i++) {
-    ssRes += (sigWin[i] - fittedWin[i])**2;
-    ssTot += (sigWin[i] - sigMean)**2;
+  for (let i=0;i<sigWin.length;i++) {
+    ssRes+=(sigWin[i]-fittedWin[i])**2; ssTot+=(sigWin[i]-sigMean)**2;
   }
-  const r2 = ssTot>0 ? 1 - ssRes/ssTot : 0;
+  const r2=ssTot>0?1-ssRes/ssTot:0;
+  const rmse=Math.sqrt(ssRes/sigWin.length);
 
-  return { modes, fittedSignal:fittedFull, rSquared:r2, activeStart:iStart, activeEnd:iEnd };
+  return {modes, fittedSignal:fittedFull, rSquared:r2, rmse,
+          activeStart:iStart, activeEnd:iEnd};
 }
 
 // ════════════════════════════════════════════════════════════════════
-//  CHART.JS SETUP & UPDATE
+//  CHART INIT & UPDATE
 // ════════════════════════════════════════════════════════════════════
 function initChart() {
   if (chart) return;
-  const ctx = document.getElementById('main-chart').getContext('2d');
-  chart = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: [],
-      datasets: [
-        { label: 'Original Signal', data: [], borderColor: '#3b82f6', borderWidth: 1.5,
-          pointRadius: 0, tension: 0, fill: false },
-        { label: 'Smoothed Signal', data: [], borderColor: '#f59e0b', borderWidth: 1.5,
-          pointRadius: 0, tension: 0, fill: false },
-        { label: 'Peaks', data: [], borderColor: '#ef4444', backgroundColor: '#ef4444',
-          pointRadius: 6, pointStyle: 'circle', showLine: false },
-        { label: 'Prony Fit', data: [], borderColor: '#22d3ee', borderWidth: 2,
-          borderDash: [5,3], pointRadius: 0, tension: 0, fill: false },
-        { label: 'Analysis Window', data: [], borderColor: 'rgba(59,130,246,0.15)',
-          backgroundColor: 'rgba(59,130,246,0.10)', fill: true,
-          pointRadius: 0, borderWidth: 0, tension: 0 },
+  const ctx=document.getElementById('main-chart').getContext('2d');
+  chart=new Chart(ctx,{
+    type:'line',
+    data:{
+      datasets:[
+        {label:'Original Signal',data:[],borderColor:'#3b82f6',borderWidth:1.5,pointRadius:0,tension:0,fill:false},
+        {label:'Smoothed Signal',data:[],borderColor:'#f59e0b',borderWidth:1.5,pointRadius:0,tension:0,fill:false},
+        {label:'Peaks',data:[],borderColor:'#ef4444',backgroundColor:'#ef4444',pointRadius:6,pointStyle:'circle',showLine:false},
+        {label:'Prony Fit',data:[],borderColor:'#22d3ee',borderWidth:2,borderDash:[5,3],pointRadius:0,tension:0,fill:false},
+        {label:'Decay Envelope',data:[],borderColor:'#a855f7',borderWidth:1.5,borderDash:[3,3],pointRadius:0,tension:0,fill:false},
+        {label:'Analysis Window',data:[],borderColor:'rgba(59,130,246,0.15)',backgroundColor:'rgba(59,130,246,0.10)',fill:true,pointRadius:0,borderWidth:0,tension:0},
       ],
     },
-    options: {
-      animation: false,
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
-      plugins: {
-        legend: {
-          labels: { color: '#94a3b8', font: { family: 'JetBrains Mono', size: 11 } }
-        },
-        tooltip: {
-          backgroundColor: '#131720',
-          borderColor: '#252d40',
-          borderWidth: 1,
-          titleColor: '#e2e8f0',
-          bodyColor: '#94a3b8',
-          titleFont: { family: 'JetBrains Mono' },
-          bodyFont:  { family: 'JetBrains Mono' },
+    options:{
+      animation:false,responsive:true,maintainAspectRatio:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{labels:{color:'#94a3b8',font:{family:'JetBrains Mono',size:10}}},
+        tooltip:{backgroundColor:'#131720',borderColor:'#252d40',borderWidth:1,
+          titleColor:'#e2e8f0',bodyColor:'#94a3b8',
+          titleFont:{family:'JetBrains Mono'},bodyFont:{family:'JetBrains Mono'},
+          callbacks:{
+            label: ctx => ` ${ctx.dataset.label}: ${typeof ctx.raw==='object'?ctx.raw.y?.toFixed(4):ctx.raw}`
+          }
         },
       },
-      scales: {
-        x: {
-          type: 'linear',
-          title: { display: true, text: 'Time (s)', color: '#64748b',
-                   font: { family: 'JetBrains Mono', size: 11 } },
-          ticks: { color: '#64748b', font: { family: 'JetBrains Mono', size: 10 }, maxTicksLimit: 12 },
-          grid: { color: getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim() || '#1a2030' },
+      scales:{
+        x:{type:'linear',title:{display:true,text:'Time (s)',color:'#64748b',font:{family:'JetBrains Mono',size:10}},
+          ticks:{color:'#64748b',font:{family:'JetBrains Mono',size:9},maxTicksLimit:12},
+          grid:{color:'#1a2030'}},
+        y:{title:{display:true,text:'MW',color:'#64748b',font:{family:'JetBrains Mono',size:10}},
+          ticks:{color:'#64748b',font:{family:'JetBrains Mono',size:9}},
+          grid:{color:'#1a2030'}},
+      },
+    },
+  });
+}
+
+function initPSDChart() {
+  if (psdChart) return;
+  const ctx=document.getElementById('psd-chart').getContext('2d');
+  psdChart=new Chart(ctx,{
+    type:'line',
+    data:{
+      datasets:[
+        {label:'Power Spectral Density',data:[],borderColor:'#22d3ee',borderWidth:1.5,
+          backgroundColor:'rgba(34,211,238,0.08)',fill:true,pointRadius:0,tension:0.2},
+        {label:'Dominant Frequency',data:[],borderColor:'#ef4444',borderWidth:2,
+          borderDash:[4,3],pointRadius:0,tension:0,fill:false},
+      ],
+    },
+    options:{
+      animation:false,responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{labels:{color:'#94a3b8',font:{family:'JetBrains Mono',size:10}}},
+        tooltip:{backgroundColor:'#131720',borderColor:'#252d40',borderWidth:1,
+          titleColor:'#e2e8f0',bodyColor:'#94a3b8',
+          titleFont:{family:'JetBrains Mono'},bodyFont:{family:'JetBrains Mono'},
+          callbacks:{
+            title: items => `f = ${items[0]?.raw?.x?.toFixed(4)} Hz`,
+            label: ctx => ` PSD: ${ctx.raw?.y?.toExponential(3)}`
+          }
         },
-        y: {
-          title: { display: true, text: 'MW', color: '#64748b',
-                   font: { family: 'JetBrains Mono', size: 11 } },
-          ticks: { color: '#64748b', font: { family: 'JetBrains Mono', size: 10 } },
-          grid: { color: getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim() || '#1a2030' },
-        },
+      },
+      scales:{
+        x:{type:'linear',title:{display:true,text:'Frequency (Hz)',color:'#64748b',font:{family:'JetBrains Mono',size:10}},
+          ticks:{color:'#64748b',font:{family:'JetBrains Mono',size:9}},
+          grid:{color:'#1a2030'},
+          min:0, max:Math.min(5,10)},
+        y:{type:'logarithmic',title:{display:true,text:'PSD (MW²/Hz)',color:'#64748b',font:{family:'JetBrains Mono',size:10}},
+          ticks:{color:'#64748b',font:{family:'JetBrains Mono',size:9},
+            callback: v => v.toExponential(0)},
+          grid:{color:'#1a2030'}},
       },
     },
   });
@@ -956,90 +967,188 @@ function initChart() {
 
 function updateChart(signalData, peakResult, pronyResult) {
   initChart();
-  const { time, raw, smoothed, steadyStateOffset: off } = signalData;
-  const labels = Array.from(time);
+  const {time, raw, smoothed, steadyStateOffset:off} = signalData;
 
-  // Dataset 0: original
-  chart.data.labels = labels;
-  chart.data.datasets[0].data = Array.from(raw).map((v,i) => ({x: time[i], y: v}));
+  chart.data.datasets[0].data = Array.from(raw).map((v,i)=>({x:time[i],y:v}));
+  chart.data.datasets[1].data = Array.from(smoothed).map((v,i)=>({x:time[i],y:v+off}));
 
-  // Dataset 1: smoothed (shifted back by offset)
-  chart.data.datasets[1].data = Array.from(smoothed).map((v,i) => ({x: time[i], y: v+off}));
-
-  // Dataset 2: peaks
+  // Peaks
   if (peakResult) {
-    chart.data.datasets[2].data = peakResult.peakTimes.map((t,i) => ({x:t, y:peakResult.peakValues[i]+off}));
-    chart.data.datasets[2].hidden = false;
+    chart.data.datasets[2].data = peakResult.peakTimes.map((t,i)=>({x:t,y:peakResult.peakValues[i]+off}));
+    chart.data.datasets[2].hidden=false;
   } else {
-    chart.data.datasets[2].data = [];
-    chart.data.datasets[2].hidden = true;
+    chart.data.datasets[2].data=[]; chart.data.datasets[2].hidden=true;
   }
 
-  // Dataset 3: Prony fit
+  // Prony fit
   if (pronyResult) {
-    chart.data.datasets[3].data = Array.from(pronyResult.fittedSignal).map((v,i) => ({x:time[i], y:v+off}));
-    chart.data.datasets[3].label = `Prony Fit  (R²=${pronyResult.rSquared.toFixed(4)})`;
-    chart.data.datasets[3].hidden = false;
+    chart.data.datasets[3].data = Array.from(pronyResult.fittedSignal).map((v,i)=>({x:time[i],y:v+off}));
+    chart.data.datasets[3].label=`Prony Fit (R²=${pronyResult.rSquared.toFixed(4)})`;
+    chart.data.datasets[3].hidden=false;
   } else {
-    chart.data.datasets[3].data = [];
-    chart.data.datasets[3].hidden = true;
+    chart.data.datasets[3].data=[]; chart.data.datasets[3].hidden=true;
   }
 
-  // Dataset 4: analysis window shading (fill between two flat lines at min/max y)
+  // Exponential decay envelope (peak method)
+  if (peakResult?.envelope) {
+    const env=peakResult.envelope;
+    const t0=time[0], tN=time[time.length-1];
+    const envPoints=[];
+    for (let t=t0; t<=tN; t+=(tN-t0)/200) {
+      const v=env.A*Math.exp(-env.sigma*t)+off;
+      envPoints.push({x:t,y:v});
+    }
+    chart.data.datasets[4].data=envPoints;
+    chart.data.datasets[4].hidden=false;
+  } else {
+    chart.data.datasets[4].data=[]; chart.data.datasets[4].hidden=true;
+  }
+
+  // Window shading (Prony)
   if (pronyResult) {
-    const t0 = time[pronyResult.activeStart];
-    const t1 = time[Math.min(pronyResult.activeEnd, time.length-1)];
-    // Create a band by plotting the window boundaries
-    // We simulate axvspan by adding two points at the y extremes for fill
-    const yMin = Math.min(...Array.from(raw));
-    const yMax = Math.max(...Array.from(raw));
-    // Use a step dataset spanning just t0..t1
-    chart.data.datasets[4].data = [
-      {x:t0, y:yMax+Math.abs(yMax)*0.05},
-      {x:t1, y:yMax+Math.abs(yMax)*0.05},
-    ];
-    chart.data.datasets[4].hidden = false;
+    const t0=time[pronyResult.activeStart], t1=time[Math.min(pronyResult.activeEnd,time.length-1)];
+    const yMax=Math.max(...Array.from(raw));
+    chart.data.datasets[5].data=[{x:t0,y:yMax*1.05},{x:t1,y:yMax*1.05}];
+    chart.data.datasets[5].hidden=false;
   } else {
-    chart.data.datasets[4].data = [];
-    chart.data.datasets[4].hidden = true;
+    chart.data.datasets[5].data=[]; chart.data.datasets[5].hidden=true;
   }
 
-  chart.update('none');   // 'none' = skip animation → instant
+  chart.update('none');
+}
+
+function updatePSD(signalData) {
+  const dt = signalData.time.length>1 ? signalData.time[1]-signalData.time[0] : 1;
+  initPSDChart();
+  const {freqs, psd, fs} = computePSD(Array.from(signalData.detrended), dt);
+
+  // Limit to 0–5 Hz (inter-area band)
+  const maxFreq = Math.min(5, fs/2);
+  const fData=[], pData=[];
+  for (let i=0;i<freqs.length;i++) {
+    if (freqs[i]>maxFreq) break;
+    fData.push({x:freqs[i],y:Math.max(psd[i],1e-20)});
+  }
+
+  // Dominant freq
+  let domIdx=0;
+  for (let i=1;i<fData.length;i++) if (fData[i].y>fData[domIdx].y) domIdx=i;
+  const domFreq=fData[domIdx]?.x??0;
+  const snr=estimateSNR(fData.map(d=>d.y), fData.map(d=>d.x), domIdx);
+
+  psdChart.data.datasets[0].data=fData;
+  // Vertical marker at dominant frequency
+  psdChart.data.datasets[1].data=[{x:domFreq,y:fData[0]?.y??1e-10},{x:domFreq,y:fData[domIdx]?.y??1}];
+  psdChart.options.scales.x.max=maxFreq;
+  psdChart.update('none');
+
+  document.getElementById('psd-dom').textContent=domFreq.toFixed(4)+' Hz';
+  document.getElementById('psd-snr').textContent=snr!=null?snr.toFixed(1):'—';
+  document.getElementById('psd-nyq').textContent=(fs/2).toFixed(2);
 }
 
 // ════════════════════════════════════════════════════════════════════
-//  RESULT FORMATTING
+//  METRICS DASHBOARD
 // ════════════════════════════════════════════════════════════════════
-function pad(str, w) { return String(str).padStart(w); }
+function card(label, value, unit, sub, extraClass) {
+  const cls = extraClass ? ` ${extraClass}` : '';
+  const valCls = extraClass || '';
+  return `<div class="metric-card${cls}">
+    <div class="mc-label">${label}</div>
+    <div class="mc-value ${valCls}">${value}</div>
+    <div class="mc-unit">${unit}</div>
+    ${sub?`<div class="mc-sub">${sub}</div>`:''}
+  </div>`;
+}
+
+function buildMetricsDashboard(peakRes, pronyRes, signalData) {
+  const panel=document.getElementById('metrics-panel');
+  let html='';
+
+  if (peakRes) {
+    const zetaPass = peakRes.avgDampingRatio >= COMPLIANCE_MIN_DAMPING_RATIO;
+    const halfPass  = peakRes.avgHalvingTime  <= COMPLIANCE_MAX_HALVING_TIME;
+    html += `<div class="section-title">Peak Envelope — IEEE/NERC Compliance</div>`;
+    html += card('Avg Damping Ratio ζ',
+      (peakRes.avgDampingRatio*100).toFixed(2)+'%', '(≥ 10% required)',
+      `σ = ${peakRes.stdDampingRatio.toFixed(4)} std dev across pairs`,
+      zetaPass?'pass':'fail');
+    html += card('Avg Halving Time T½',
+      peakRes.avgHalvingTime===Infinity?'∞':peakRes.avgHalvingTime.toFixed(3), 's (≤ 5.0 s required)',
+      '', halfPass?'pass':'fail');
+    html += card('Avg Damping Rate σ',
+      peakRes.avgSigma.toFixed(4), 'Np/s', '');
+    html += card('Oscillation Frequency',
+      peakRes.avgFrequency.toFixed(4), 'Hz',
+      `σ_f = ${peakRes.stdFrequency.toFixed(4)} Hz`);
+    if (peakRes.envelope) {
+      html += card('Envelope Fit A',
+        peakRes.envelope.A.toFixed(4), 'MW (initial amplitude)',
+        `σ_env = ${peakRes.envelope.sigma.toFixed(4)} Np/s`);
+    }
+    html += card('Pairs Analysed', peakRes.pairs.length, 'peak pairs','');
+    html += card('Overall Result',
+      zetaPass&&halfPass?'COMPLIANT':'NON-COMPLIANT','',
+      'IEEE/NERC inter-area criterion',
+      zetaPass&&halfPass?'pass':'fail');
+  }
+
+  if (pronyRes) {
+    html += `<div class="section-title">Prony Analysis</div>`;
+    html += card('Model R²', pronyRes.rSquared.toFixed(6), 'goodness of fit',
+      pronyRes.rSquared>0.95?'Excellent fit':pronyRes.rSquared>0.80?'Good fit':'Poor fit — try more modes',
+      pronyRes.rSquared>0.80?'pass':'warn');
+    html += card('RMSE', pronyRes.rmse.toFixed(4), 'MW (fit error)','');
+    html += card('Modes Found', pronyRes.modes.length, `of ${document.getElementById('sl-modes').value} requested`,
+      pronyRes.modes.length===0?'⚠ No valid modes in band':'');
+
+    pronyRes.modes.forEach((m,i) => {
+      html += card(`Mode ${i+1}`,
+        m.frequencyHz.toFixed(4), 'Hz',
+        `ζ=${(m.dampingRatio*100).toFixed(2)}%  σ=${m.dampingRate.toFixed(4)} Np/s  T=${m.period.toFixed(3)}s`,
+        m.dampingRatio<0.10?'warn':'');
+    });
+  }
+
+  if (!peakRes && !pronyRes) {
+    html = '<div style="color:var(--muted);font-size:11px;padding:20px">Run a calculation to populate the metrics dashboard.</div>';
+  }
+  panel.innerHTML = html;
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  RESULT FORMATTING (text)
+// ════════════════════════════════════════════════════════════════════
+function pad(str,w) { return String(str).padStart(w); }
+
 function fmtPeakResult(result) {
-  const cols = ['Pair','Time1(s)','Peak1','Time2(s)','Peak2','LogDec','Sigma','DampRatio','Freq(Hz)','HalfT(s)'];
-  const widths = [5, 9, 10, 9, 10, 10, 10, 10, 9, 10];
-  const header = cols.map((c,i) => pad(c,widths[i])).join(' ');
-  const sep = '-'.repeat(header.length);
-  const rows = result.pairs.map(p => [
-    pad(p.pairIndex, widths[0]),
-    pad(p.time1.toFixed(4), widths[1]),
-    pad(p.peak1.toFixed(4), widths[2]),
-    pad(p.time2.toFixed(4), widths[3]),
-    pad(p.peak2.toFixed(4), widths[4]),
-    pad(p.logDecrement.toFixed(6), widths[5]),
-    pad(p.sigma.toFixed(6), widths[6]),
-    pad(p.dampingRatio.toFixed(6), widths[7]),
-    pad(p.frequencyHz.toFixed(4), widths[8]),
-    pad(p.halvingTime === Infinity ? 'Inf' : p.halvingTime.toFixed(4), widths[9]),
+  const cols=['Pair','Time1(s)','Peak1','Time2(s)','Peak2','LogDec','Sigma','DampRatio','Freq(Hz)','HalfT(s)'];
+  const widths=[5,9,10,9,10,10,10,10,9,10];
+  const header=cols.map((c,i)=>pad(c,widths[i])).join(' ');
+  const sep='-'.repeat(header.length);
+  const rows=result.pairs.map(p=>[
+    pad(p.pairIndex,widths[0]),pad(p.time1.toFixed(4),widths[1]),pad(p.peak1.toFixed(4),widths[2]),
+    pad(p.time2.toFixed(4),widths[3]),pad(p.peak2.toFixed(4),widths[4]),
+    pad(p.logDecrement.toFixed(6),widths[5]),pad(p.sigma.toFixed(6),widths[6]),
+    pad(p.dampingRatio.toFixed(6),widths[7]),pad(p.frequencyHz.toFixed(4),widths[8]),
+    pad(p.halvingTime===Infinity?'Inf':p.halvingTime.toFixed(4),widths[9]),
   ].join(' ')).join('\n');
 
-  const zetaPass = result.avgDampingRatio >= COMPLIANCE_MIN_DAMPING_RATIO;
-  const halfPass = result.avgHalvingTime  <= COMPLIANCE_MAX_HALVING_TIME;
+  const zetaPass=result.avgDampingRatio>=COMPLIANCE_MIN_DAMPING_RATIO;
+  const halfPass=result.avgHalvingTime<=COMPLIANCE_MAX_HALVING_TIME;
+
+  const envLine = result.envelope
+    ? `Envelope fit:      A = ${result.envelope.A.toFixed(4)} MW,  σ_env = ${result.envelope.sigma.toFixed(4)} Np/s\n`
+    : '';
 
   return [
     `===== ${result.methodLabel} =====\n`,
-    header, sep, rows,
-    '',
-    `Average Damping Ratio  = ${result.avgDampingRatio.toFixed(4)}`,
+    header, sep, rows, '',
+    `Average Damping Ratio  = ${result.avgDampingRatio.toFixed(4)}  ±${result.stdDampingRatio.toFixed(4)} (std)`,
     `Average Sigma          = ${result.avgSigma.toFixed(4)} Np/s`,
     `Average Halving Time   = ${result.avgHalvingTime.toFixed(4)} s`,
-    '',
+    `Average Frequency      = ${result.avgFrequency.toFixed(4)} Hz  ±${result.stdFrequency.toFixed(4)}`,
+    envLine,
     '===== COMPLIANCE CHECK =====',
     `${zetaPass?'PASS ✓':'FAIL ✗'}  Damping Ratio (${zetaPass?'≥':'<'} ${COMPLIANCE_MIN_DAMPING_RATIO})`,
     `${halfPass?'PASS ✓':'FAIL ✗'}  Halving Time  (${halfPass?'≤':'>'} ${COMPLIANCE_MAX_HALVING_TIME} s)`,
@@ -1047,172 +1156,512 @@ function fmtPeakResult(result) {
 }
 
 function fmtPronyResult(result, numModes, windowLen, signalData) {
-  const t  = signalData.time;
-  const t0 = t[result.activeStart];
-  const t1 = t[Math.min(result.activeEnd, t.length-1)];
-  const activeSamples = result.activeEnd - result.activeStart;
+  const t=signalData.time;
+  const t0=t[result.activeStart], t1=t[Math.min(result.activeEnd,t.length-1)];
+  const activeSamples=result.activeEnd-result.activeStart;
 
-  const lines = [
+  const lines=[
     `Prony Analysis  |  Modes=${numModes}  Window=${windowLen} samples`,
-    '='.repeat(60),
-    `Active window: [${result.activeStart}–${result.activeEnd}]  (${t0.toFixed(3)}s – ${t1.toFixed(3)}s,  ${activeSamples} samples)`,
+    '='.repeat(64),
+    `Active window: [${result.activeStart}–${result.activeEnd}]  (${t0.toFixed(3)}s–${t1.toFixed(3)}s,  ${activeSamples} samples)`,
+    `R² = ${result.rSquared.toFixed(6)}   RMSE = ${result.rmse.toFixed(4)} MW`,
     '',
   ];
 
   if (!result.modes.length) {
-    lines.push(
-      `⚠  No modes found in [${PRONY_FREQ_MIN_HZ}, ${PRONY_FREQ_MAX_HZ}] Hz with positive damping.`,
-      'Try increasing Modes or Window, or lowering Energy Threshold.',
-    );
+    lines.push(`⚠  No modes in [${PRONY_FREQ_MIN_HZ}, ${PRONY_FREQ_MAX_HZ}] Hz with σ>0.`);
+    lines.push('Try: increase Modes or Window, lower Energy Threshold.');
   } else {
-    const hdr = `${'Mode'.padStart(5)} ${'Amp'.padStart(10)} ${'Freq(Hz)'.padStart(9)} ${'σ(Np/s)'.padStart(9)} ${'ζ'.padStart(8)}`;
-    const sep = '-'.repeat(hdr.length);
-    lines.push(hdr, sep);
+    const hdr=`${'Mode'.padStart(5)} ${'Amp'.padStart(10)} ${'Freq(Hz)'.padStart(9)} ${'Period(s)'.padStart(10)} ${'σ(Np/s)'.padStart(9)} ${'ζ'.padStart(8)} ${'Flag'.padStart(6)}`;
+    lines.push(hdr, '-'.repeat(hdr.length));
     for (const m of result.modes) {
+      const flag = m.dampingRatio<0.10?'⚠ LOW':(m.unstable?'⚠ OVR':'OK');
       lines.push(
-        `${String(m.index).padStart(5)} ${m.amplitude.toFixed(5).padStart(10)} ${m.frequencyHz.toFixed(4).padStart(9)} ${m.dampingRate.toFixed(4).padStart(9)} ${m.dampingRatio.toFixed(4).padStart(8)}`
+        `${String(m.index).padStart(5)} ${m.amplitude.toFixed(5).padStart(10)} ${m.frequencyHz.toFixed(4).padStart(9)} ${m.period.toFixed(4).padStart(10)} ${m.dampingRate.toFixed(4).padStart(9)} ${(m.dampingRatio).toFixed(4).padStart(8)} ${flag.padStart(6)}`
       );
     }
   }
-  lines.push('', `R² = ${result.rSquared.toFixed(6)}`);
   return lines.join('\n');
 }
+
+// ════════════════════════════════════════════════════════════════════
+//  CSV EXPORT
+// ════════════════════════════════════════════════════════════════════
+function exportCSV() {
+  if (!lastExportData) { showToast('No results to export. Run Calculate first.'); return; }
+  const {type, headers, rows} = lastExportData;
+  const lines=[headers.join(','), ...rows.map(r=>r.join(','))];
+  const blob=new Blob([lines.join('\n')], {type:'text/csv'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=`damping_results_${type}_${Date.now()}.csv`;
+  a.click(); URL.revokeObjectURL(url);
+}
+
+function setPeakExportData(result) {
+  const headers=['Pair','Time1_s','Peak1_MW','Time2_s','Peak2_MW',
+                 'LogDecrement','Sigma_Nps','DampingRatio','Freq_Hz','HalvingTime_s'];
+  const rows=result.pairs.map(p=>[
+    p.pairIndex, p.time1.toFixed(6), p.peak1.toFixed(6), p.time2.toFixed(6), p.peak2.toFixed(6),
+    p.logDecrement.toFixed(8), p.sigma.toFixed(8), p.dampingRatio.toFixed(8),
+    p.frequencyHz.toFixed(6), p.halvingTime===Infinity?'Inf':p.halvingTime.toFixed(6),
+  ]);
+  // Append summary row
+  rows.push(['AVG','','','','','',result.avgSigma.toFixed(8),result.avgDampingRatio.toFixed(8),
+    result.avgFrequency.toFixed(6),result.avgHalvingTime.toFixed(6)]);
+  lastExportData={type:'peak', headers, rows};
+}
+
+function setPronyExportData(result) {
+  const headers=['Mode','Amplitude_MW','Freq_Hz','Period_s','DampingRate_Nps','DampingRatio','Flag'];
+  const rows=result.modes.map(m=>[
+    m.index, m.amplitude.toFixed(8), m.frequencyHz.toFixed(6), m.period.toFixed(6),
+    m.dampingRate.toFixed(6), m.dampingRatio.toFixed(6),
+    m.dampingRatio<0.10?'LOW_DAMPING':(m.unstable?'OVERDAMPED':'OK'),
+  ]);
+  lastExportData={type:'prony', headers, rows};
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  FILE LOADING
+// ════════════════════════════════════════════════════════════════════
+document.getElementById('file-input').addEventListener('change', function() {
+  const file=this.files[0]; if (!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const content=e.target.result;
+    document.getElementById('input-box').value=content;
+    // Pre-parse to detect columns
+    try {
+      parsedColumns=parseAllColumns(content);
+      updateColumnSelectors(parsedColumns.headers);
+    } catch(err) {}
+  };
+  reader.readAsText(file); this.value='';
+});
 
 // ════════════════════════════════════════════════════════════════════
 //  MAIN CALCULATE
 // ════════════════════════════════════════════════════════════════════
 function calculate() {
-  const rawText   = document.getElementById('input-box').value;
-  const numPeaks  = parseInt(document.getElementById('num-peaks').value) || 6;
-  const prominence = parseFloat(document.getElementById('prominence').value) || 0.005;
-  const smoothWin = parseInt(document.getElementById('smooth-win').value) || 3;
-  const useOffset = document.getElementById('use-offset').checked;
-  const useProny  = document.getElementById('use-prony').checked;
+  const rawText  = document.getElementById('input-box').value;
+  const numPeaks = parseInt(document.getElementById('num-peaks').value)||6;
+  const prominence=parseFloat(document.getElementById('prominence').value)||0.005;
+  const smoothWin=parseInt(document.getElementById('smooth-win').value)||3;
+  const useOffset=document.getElementById('use-offset').checked;
+  const useProny =document.getElementById('use-prony').checked;
 
+  // Get time & signal columns
   let time, vals;
-  try { [time, vals] = parseTwoColumnText(rawText); }
-  catch(e) { showToast('Parse error: ' + e.message); return; }
+  try {
+    parsedColumns=parseAllColumns(rawText);
+    updateColumnSelectors(parsedColumns.headers);
+    const tCol=parseInt(document.getElementById('col-time').value)||0;
+    const sCol=parseInt(document.getElementById('col-signal').value)||1;
+    time=parsedColumns.columns[tCol];
+    vals=parsedColumns.columns[sCol];
+    if (!time||!vals) throw new Error('Column index out of range.');
+  } catch(e) { showToast('Parse error: '+e.message); return; }
+
+  // Non-uniform sampling check
+  const sampInfo=checkUniformSampling(time);
+  document.getElementById('st-nonuniform').style.display = sampInfo.uniform?'none':'';
 
   let signalData;
-  try { signalData = preprocess(time, vals, useOffset, smoothWin); }
-  catch(e) { showToast('Pre-processing error: ' + e.message); return; }
+  try { signalData=preprocess(time, vals, useOffset, smoothWin); }
+  catch(e) { showToast('Pre-processing error: '+e.message); return; }
+  cachedSignal=signalData;
 
-  cachedSignal = signalData;
+  const dt=sampInfo.dt;
+  setStatus(time.length, time[time.length-1]-time[0], dt, useProny?'Prony':'Peak Envelope');
 
-  const dt = time.length>1 ? time[1]-time[0] : 0;
-  const mode = useProny ? 'Prony' : 'Peak Envelope';
-  setStatus(time.length, time[time.length-1]-time[0], dt, mode);
+  // Always compute PSD
+  updatePSD(signalData);
 
-  if (useProny) {
-    runPronyAndDisplay();
-  } else {
-    runPeakAndDisplay();
-  }
+  if (useProny) { runPronyAndDisplay(); }
+  else { runPeakAndDisplay(); }
 }
 
 function runPeakAndDisplay() {
-  const numPeaks   = parseInt(document.getElementById('num-peaks').value) || 6;
-  const prominence = parseFloat(document.getElementById('prominence').value) || 0.005;
-
+  const numPeaks  =parseInt(document.getElementById('num-peaks').value)||6;
+  const prominence=parseFloat(document.getElementById('prominence').value)||0.005;
   let result;
-  try { result = runPeakEnvelope(cachedSignal, numPeaks, prominence); }
-  catch(e) { showToast('Peak detection error: ' + e.message); return; }
-
+  try { result=runPeakEnvelope(cachedSignal, numPeaks, prominence); }
+  catch(e) { showToast('Peak detection error: '+e.message); return; }
+  cachedPeakRes=result; cachedPronyRes=null;
   writeOutput(fmtPeakResult(result));
   updateChart(cachedSignal, result, null);
-  document.getElementById('st-r2-wrap').style.display = 'none';
+  syncHandleCanvas();
+  setPeakExportData(result);
+  buildMetricsDashboard(result, null, cachedSignal);
+  document.getElementById('st-r2-wrap').style.display='none';
+  document.getElementById('st-rmse-wrap').style.display='none';
 }
 
 function runPronyAndDisplay() {
   if (!cachedSignal) return;
-  const numModes   = parseInt(document.getElementById('sl-modes').value) || 3;
-  const windowLen  = parseInt(document.getElementById('sl-window').value) || 237;
-  const energyPct  = (parseInt(document.getElementById('sl-energy').value) || 1) / 100;
-
+  const numModes =parseInt(document.getElementById('sl-modes').value)||3;
+  const windowLen=parseInt(document.getElementById('sl-window').value)||237;
+  const energyPct=(parseInt(document.getElementById('sl-energy').value)||1)/100;
   let result;
-  try { result = runProny(cachedSignal, numModes, windowLen, energyPct); }
-  catch(e) { showToast('Prony error: ' + e.message); writeOutput('Prony error: ' + e.message); return; }
-
+  try { result=runProny(cachedSignal, numModes, windowLen, energyPct); }
+  catch(e) { showToast('Prony error: '+e.message); writeOutput('Prony error: '+e.message); return; }
+  cachedPronyRes=result; cachedPeakRes=null;
   writeOutput(fmtPronyResult(result, numModes, windowLen, cachedSignal));
   updateChart(cachedSignal, null, result);
-
-  document.getElementById('st-r2-wrap').style.display = '';
-  document.getElementById('st-r2').textContent = result.rSquared.toFixed(6);
+  syncHandleCanvas();
+  setPronyExportData(result);
+  buildMetricsDashboard(null, result, cachedSignal);
+  document.getElementById('st-r2-wrap').style.display='';
+  document.getElementById('st-rmse-wrap').style.display='';
+  document.getElementById('st-r2').textContent=result.rSquared.toFixed(6);
+  document.getElementById('st-rmse').textContent=result.rmse.toFixed(4)+' MW';
 }
 
-// ── Debounced slider handler ───────────────────────────────────────
 function debouncedRunProny() {
   clearTimeout(debounceId);
-  debounceId = setTimeout(() => {
-    if (cachedSignal && document.getElementById('use-prony').checked) {
-      runPronyAndDisplay();
-    }
+  debounceId=setTimeout(()=>{
+    if (cachedSignal&&document.getElementById('use-prony').checked) runPronyAndDisplay();
   }, 80);
 }
 
 // ════════════════════════════════════════════════════════════════════
-//  CHART RESIZE HANDLER
+//  CHART INTERACTION: PAN / ZOOM / WINDOW SELECTION
 // ════════════════════════════════════════════════════════════════════
-function resizeChart() {
-  const pane = document.getElementById('chart-container');
-  const canvas = document.getElementById('main-chart');
-  canvas.style.height = (pane.clientHeight - 10) + 'px';
-  if (chart) chart.resize();
+
+// ── Toolbar mode toggle ───────────────────────────────────────────
+function setChartMode(mode) {
+  chartMode = mode;
+  document.getElementById('tb-pan').classList.toggle('active', mode==='pan');
+  document.getElementById('tb-zoom').classList.toggle('active', mode==='zoom');
+  if (!chart) return;
+  chart.options.plugins.zoom.pan.enabled  = (mode==='pan' && !windowModeActive);
+  chart.options.plugins.zoom.zoom.drag    = mode==='zoom' ? {enabled:true,backgroundColor:'rgba(59,130,246,0.15)',borderColor:'#3b82f6',borderWidth:1} : {enabled:false};
+  chart.update('none');
 }
-window.addEventListener('resize', resizeChart);
-window.addEventListener('load', () => { initChart(); resizeChart(); });
+
+function resetZoom() {
+  if (chart) { chart.resetZoom(); syncHandleCanvas(); }
+}
+
+// ── Window mode toggle ────────────────────────────────────────────
+function toggleWindowMode() {
+  windowModeActive = !windowModeActive;
+  const btn = document.getElementById('tb-window');
+  const hc  = document.getElementById('handle-canvas');
+  btn.classList.toggle('active', windowModeActive);
+  hc.classList.toggle('active', windowModeActive);
+  // Disable chart pan while in window mode so handles get priority
+  if (chart) {
+    chart.options.plugins.zoom.pan.enabled = (!windowModeActive && chartMode==='pan');
+    chart.update('none');
+  }
+  if (windowModeActive) {
+    // Initialise handles to current Prony window or full range
+    if (cachedSignal && manualWindowT0===null) {
+      const t = cachedSignal.time;
+      if (cachedPronyRes) {
+        manualWindowT0 = t[cachedPronyRes.activeStart];
+        manualWindowT1 = t[Math.min(cachedPronyRes.activeEnd, t.length-1)];
+      } else {
+        manualWindowT0 = t[0];
+        manualWindowT1 = t[t.length-1];
+      }
+    }
+    syncHandleCanvas();
+    updateWindowStrip();
+  } else {
+    syncHandleCanvas();
+  }
+}
+
+function clearWindowSelection() {
+  manualWindowT0 = null;
+  manualWindowT1 = null;
+  if (windowModeActive) toggleWindowMode();
+  syncHandleCanvas();
+  document.getElementById('prony-window-strip').classList.remove('visible');
+  showToast('Manual window cleared — auto-detection will be used.');
+}
+
+// ── Handle canvas: draw draggable vertical lines ──────────────────
+function syncHandleCanvas() {
+  const hc = document.getElementById('handle-canvas');
+  const chartEl = document.getElementById('main-chart');
+  // Match size to main chart canvas
+  hc.width  = chartEl.width;
+  hc.height = chartEl.height;
+  hc.style.width  = chartEl.style.width  || chartEl.offsetWidth  + 'px';
+  hc.style.height = chartEl.style.height || chartEl.offsetHeight + 'px';
+
+  const ctx = hc.getContext('2d');
+  ctx.clearRect(0, 0, hc.width, hc.height);
+  if (!chart || (!windowModeActive && manualWindowT0===null)) return;
+
+  const t0 = manualWindowT0, t1 = manualWindowT1;
+  if (t0===null || t1===null) return;
+
+  // Convert time values to canvas pixel x
+  const area = chart.chartArea;
+  const xScale = chart.scales.x;
+  const x0 = xScale.getPixelForValue(t0);
+  const x1 = xScale.getPixelForValue(t1);
+  const top = area.top, bot = area.bottom;
+  const h = hc.height;
+  const dpr = window.devicePixelRatio || 1;
+
+  // Shaded region
+  ctx.save();
+  ctx.fillStyle = isDark ? 'rgba(59,130,246,0.10)' : 'rgba(37,99,235,0.08)';
+  ctx.fillRect(x0, top, x1-x0, bot-top);
+  ctx.restore();
+
+  // Left handle (start)
+  drawHandle(ctx, x0, top, bot, '#22d3ee', 'START', t0, true);
+  // Right handle (end)
+  drawHandle(ctx, x1, top, bot, '#f59e0b', 'END', t1, false);
+}
+
+function drawHandle(ctx, x, top, bot, color, label, tVal, isLeft) {
+  const isHover = hdl.hoverHandle === (isLeft?'left':'right');
+  const isDragging = hdl.dragging === (isLeft?'left':'right');
+  const lw = (isDragging||isHover) ? 2.5 : 1.5;
+
+  ctx.save();
+  // Vertical line
+  ctx.strokeStyle = color;
+  ctx.lineWidth = lw;
+  ctx.setLineDash([]);
+  ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, bot); ctx.stroke();
+
+  // Triangle grip at top
+  const tw = 8, th = 14;
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  if (isLeft) {
+    ctx.moveTo(x, top+th); ctx.lineTo(x+tw, top); ctx.lineTo(x, top);
+  } else {
+    ctx.moveTo(x, top+th); ctx.lineTo(x-tw, top); ctx.lineTo(x, top);
+  }
+  ctx.closePath(); ctx.fill();
+
+  // Label tag
+  const tag = tVal.toFixed(3)+'s';
+  ctx.font = 'bold 9px JetBrains Mono, monospace';
+  const tw2 = ctx.measureText(tag).width + 8;
+  const tx = isLeft ? x+2 : x-tw2-2;
+  ctx.fillStyle = color;
+  ctx.fillRect(tx, top+16, tw2, 14);
+  ctx.fillStyle = '#000';
+  ctx.fillText(tag, tx+4, top+26);
+  ctx.restore();
+}
+
+// ── Hit testing: is a pixel x near a handle? ─────────────────────
+function hitHandle(pixX) {
+  if (!chart || manualWindowT0===null) return null;
+  const area = chart.chartArea;
+  const xScale = chart.scales.x;
+  const x0 = xScale.getPixelForValue(manualWindowT0);
+  const x1 = xScale.getPixelForValue(manualWindowT1);
+  const HIT = 10;
+  if (Math.abs(pixX - x0) < HIT) return 'left';
+  if (Math.abs(pixX - x1) < HIT) return 'right';
+  return null;
+}
+
+// ── Mouse events on the overlay canvas ───────────────────────────
+(function setupHandleEvents() {
+  // We attach to the wrapper div so we capture even when chart redraws
+  window.addEventListener('load', () => {
+    const hc = document.getElementById('handle-canvas');
+
+    function getCanvasX(e) {
+      const rect = hc.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      // Adjust for devicePixelRatio since canvas internal coords may differ
+      return (clientX - rect.left) * (hc.width / rect.width);
+    }
+
+    function timeFromPixX(pixX) {
+      return chart.scales.x.getValueForPixel(pixX);
+    }
+
+    hc.addEventListener('mousemove', e => {
+      if (!windowModeActive) return;
+      const x = getCanvasX(e);
+      if (hdl.dragging) {
+        const t = Math.max(
+          cachedSignal.time[0],
+          Math.min(cachedSignal.time[cachedSignal.time.length-1], timeFromPixX(x))
+        );
+        if (hdl.dragging==='left') {
+          manualWindowT0 = Math.min(t, manualWindowT1 - 0.001);
+        } else {
+          manualWindowT1 = Math.max(t, manualWindowT0 + 0.001);
+        }
+        syncHandleCanvas();
+        updateWindowStrip();
+        debouncedRunProny();
+      } else {
+        const hit = hitHandle(x);
+        hdl.hoverHandle = hit;
+        hc.style.cursor = hit ? 'ew-resize' : (windowModeActive ? 'crosshair' : 'default');
+        syncHandleCanvas();
+      }
+    });
+
+    hc.addEventListener('mousedown', e => {
+      if (!windowModeActive) return;
+      const x = getCanvasX(e);
+      const hit = hitHandle(x);
+      if (hit) {
+        hdl.dragging = hit;
+        e.preventDefault();
+      }
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (hdl.dragging) {
+        hdl.dragging = null;
+        syncHandleCanvas();
+        // Final recompute on release
+        if (cachedSignal && document.getElementById('use-prony').checked) runPronyAndDisplay();
+      }
+    });
+
+    // Scroll wheel: zoom Y axis (shift = zoom X)
+    document.getElementById('chart-container').addEventListener('wheel', e => {
+      if (!chart) return;
+      e.preventDefault();
+      const factor = e.deltaY > 0 ? 1.1 : 0.9;
+      if (e.shiftKey) {
+        // Zoom X
+        const {min, max} = chart.scales.x;
+        const mid = (min+max)/2, half=(max-min)/2*factor;
+        chart.options.scales.x.min = mid-half;
+        chart.options.scales.x.max = mid+half;
+      } else {
+        // Zoom Y
+        const {min, max} = chart.scales.y;
+        const mid = (min+max)/2, half=(max-min)/2*factor;
+        chart.options.scales.y.min = mid-half;
+        chart.options.scales.y.max = mid+half;
+      }
+      chart.update('none');
+      syncHandleCanvas();
+    }, {passive:false});
+
+    // Drag-to-pan on main chart canvas (when pan mode and not window mode)
+    let panStart = null;
+    const mc = document.getElementById('main-chart');
+    mc.addEventListener('mousedown', e => {
+      if (chartMode!=='pan' || windowModeActive) return;
+      panStart = { x:e.clientX, y:e.clientY,
+        xMin:chart.scales.x.min, xMax:chart.scales.x.max,
+        yMin:chart.scales.y.min, yMax:chart.scales.y.max };
+      mc.style.cursor = 'grabbing';
+    });
+    window.addEventListener('mousemove', e => {
+      if (!panStart) return;
+      const area = chart.chartArea;
+      const xRange = panStart.xMax - panStart.xMin;
+      const yRange = panStart.yMax - panStart.yMin;
+      const dxPx = e.clientX - panStart.x;
+      const dyPx = e.clientY - panStart.y;
+      const xPerPx = xRange / (area.right - area.left);
+      const yPerPx = yRange / (area.bottom - area.top);
+      chart.options.scales.x.min = panStart.xMin - dxPx * xPerPx;
+      chart.options.scales.x.max = panStart.xMax - dxPx * xPerPx;
+      chart.options.scales.y.min = panStart.yMin + dyPx * yPerPx;
+      chart.options.scales.y.max = panStart.yMax + dyPx * yPerPx;
+      chart.update('none');
+      syncHandleCanvas();
+    });
+    window.addEventListener('mouseup', () => {
+      if (panStart) { panStart=null; mc.style.cursor='grab'; }
+    });
+    mc.style.cursor = 'grab';
+  });
+})();
+
+// ── Update Prony window info strip ─────────────────────────────────
+function updateWindowStrip() {
+  if (manualWindowT0===null || !cachedSignal) return;
+  const t  = cachedSignal.time;
+  const dt = t.length>1 ? t[1]-t[0] : 0;
+  const dur = (manualWindowT1 - manualWindowT0);
+  const n   = dt>0 ? Math.round(dur/dt) : '—';
+  document.getElementById('pw-t0').textContent  = manualWindowT0.toFixed(4);
+  document.getElementById('pw-t1').textContent  = manualWindowT1.toFixed(4);
+  document.getElementById('pw-n').textContent   = n;
+  document.getElementById('pw-dur').textContent = dur.toFixed(4);
+  document.getElementById('prony-window-strip').classList.add('visible');
+}
+
+// ── Keyboard shortcut: Enter to calculate ────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key==='Enter' && document.activeElement.tagName!=='TEXTAREA') {
+    e.preventDefault(); calculate();
+  }
+});
 
 // ════════════════════════════════════════════════════════════════════
 //  THEME TOGGLE
 // ════════════════════════════════════════════════════════════════════
-let isDark = true;
-
 function toggleTheme() {
-  isDark = !isDark;
-  const root = document.documentElement;
-  const icon  = document.getElementById('theme-icon');
-  const label = document.getElementById('theme-label');
+  isDark=!isDark;
+  const root=document.documentElement;
+  document.getElementById('theme-icon').textContent  = isDark?'☀️':'🌙';
+  document.getElementById('theme-label').textContent = isDark?'Light':'Dark';
+  root.classList.toggle('light', !isDark);
 
-  if (isDark) {
-    root.classList.remove('light');
-    icon.textContent  = '☀️';
-    label.textContent = 'Light';
-  } else {
-    root.classList.add('light');
-    icon.textContent  = '🌙';
-    label.textContent = 'Dark';
-  }
+  const gc=isDark?'#1a2030':'#e2e8f0', tc='#64748b';
+  const lc=isDark?'#94a3b8':'#334155';
+  const tt=isDark?'#131720':'#ffffff', tb=isDark?'#252d40':'#cbd5e1';
+  const ttc=isDark?'#e2e8f0':'#0f172a', tbc=isDark?'#94a3b8':'#475569';
 
-  // Update chart colors to match new theme
+  [chart, psdChart].forEach(ch => {
+    if (!ch) return;
+    ch.options.scales.x.grid.color=gc; ch.options.scales.y.grid.color=gc;
+    ch.options.scales.x.ticks.color=tc; ch.options.scales.y.ticks.color=tc;
+    ch.options.scales.x.title.color=tc; ch.options.scales.y.title.color=tc;
+    ch.options.plugins.legend.labels.color=lc;
+    ch.options.plugins.tooltip.backgroundColor=tt;
+    ch.options.plugins.tooltip.borderColor=tb;
+    ch.options.plugins.tooltip.titleColor=ttc;
+    ch.options.plugins.tooltip.bodyColor=tbc;
+    ch.update('none');
+  });
+
   if (chart) {
-    const gridColor  = isDark ? '#1a2030' : '#e2e8f0';
-    const tickColor  = isDark ? '#64748b' : '#64748b';
-    const legendColor = isDark ? '#94a3b8' : '#334155';
-
-    chart.options.scales.x.grid.color  = gridColor;
-    chart.options.scales.y.grid.color  = gridColor;
-    chart.options.scales.x.ticks.color = tickColor;
-    chart.options.scales.y.ticks.color = tickColor;
-    chart.options.scales.x.title.color = tickColor;
-    chart.options.scales.y.title.color = tickColor;
-    chart.options.plugins.legend.labels.color = legendColor;
-    chart.options.plugins.tooltip.backgroundColor = isDark ? '#131720' : '#ffffff';
-    chart.options.plugins.tooltip.borderColor     = isDark ? '#252d40' : '#cbd5e1';
-    chart.options.plugins.tooltip.titleColor      = isDark ? '#e2e8f0' : '#0f172a';
-    chart.options.plugins.tooltip.bodyColor       = isDark ? '#94a3b8' : '#475569';
-
-    // Update dataset colors
-    chart.data.datasets[0].borderColor = isDark ? '#3b82f6' : '#2563eb';
-    chart.data.datasets[1].borderColor = isDark ? '#f59e0b' : '#d97706';
-    chart.data.datasets[2].borderColor = isDark ? '#ef4444' : '#dc2626';
-    chart.data.datasets[2].backgroundColor = isDark ? '#ef4444' : '#dc2626';
-    chart.data.datasets[3].borderColor = isDark ? '#22d3ee' : '#0891b2';
-    chart.data.datasets[4].borderColor = isDark ? 'rgba(59,130,246,0.15)' : 'rgba(37,99,235,0.15)';
-    chart.data.datasets[4].backgroundColor = isDark ? 'rgba(59,130,246,0.10)' : 'rgba(37,99,235,0.08)';
-
+    chart.data.datasets[0].borderColor=isDark?'#3b82f6':'#2563eb';
+    chart.data.datasets[1].borderColor=isDark?'#f59e0b':'#d97706';
+    chart.data.datasets[2].borderColor=isDark?'#ef4444':'#dc2626';
+    chart.data.datasets[2].backgroundColor=isDark?'#ef4444':'#dc2626';
+    chart.data.datasets[3].borderColor=isDark?'#22d3ee':'#0891b2';
+    chart.data.datasets[4].borderColor=isDark?'#a855f7':'#7c3aed';
+    chart.data.datasets[5].borderColor=isDark?'rgba(59,130,246,0.15)':'rgba(37,99,235,0.15)';
+    chart.data.datasets[5].backgroundColor=isDark?'rgba(59,130,246,0.10)':'rgba(37,99,235,0.08)';
     chart.update('none');
   }
 }
+
+// ════════════════════════════════════════════════════════════════════
+//  RESIZE
+// ════════════════════════════════════════════════════════════════════
+function resizeChart() {
+  const p=document.getElementById('chart-container');
+  document.getElementById('main-chart').style.height=(p.clientHeight-10)+'px';
+  if (chart) { chart.resize(); syncHandleCanvas(); }
+}
+function resizePSD() {
+  const p=document.getElementById('psd-container');
+  document.getElementById('psd-chart').style.height=(p.clientHeight-10)+'px';
+  if (psdChart) psdChart.resize();
+}
+window.addEventListener('resize', ()=>{ resizeChart(); resizePSD(); });
+window.addEventListener('load', ()=>{ initChart(); initPSDChart(); resizeChart(); resizePSD(); });
 </script>
 </body>
 </html>
