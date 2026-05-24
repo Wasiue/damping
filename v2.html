@@ -1,0 +1,1218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Generator Oscillation Damping Tool</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Syne:wght@400;600;700;800&display=swap');
+
+  :root {
+    --bg:       #0b0e14;
+    --surface:  #131720;
+    --surface2: #1a2030;
+    --border:   #252d40;
+    --accent:   #3b82f6;
+    --accent2:  #22d3ee;
+    --warn:     #f59e0b;
+    --danger:   #ef4444;
+    --success:  #22c55e;
+    --text:     #e2e8f0;
+    --muted:    #64748b;
+    --mono:     'JetBrains Mono', monospace;
+    --sans:     'Syne', sans-serif;
+    --radius:   6px;
+    --chart-grid: #1a2030;
+  }
+
+  :root.light {
+    --bg:       #f1f5f9;
+    --surface:  #ffffff;
+    --surface2: #e2e8f0;
+    --border:   #cbd5e1;
+    --accent:   #2563eb;
+    --accent2:  #0891b2;
+    --warn:     #d97706;
+    --danger:   #dc2626;
+    --success:  #16a34a;
+    --text:     #0f172a;
+    --muted:    #64748b;
+    --chart-grid: #e2e8f0;
+  }
+
+  /* ── Theme toggle button ── */
+  #theme-toggle {
+    font-family: var(--mono);
+    font-size: 13px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    color: var(--text);
+    cursor: pointer;
+    padding: 5px 13px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  #theme-toggle:hover { border-color: var(--accent2); color: var(--accent2); }
+  #theme-toggle .toggle-track {
+    width: 30px; height: 16px;
+    border-radius: 8px;
+    background: var(--border);
+    position: relative;
+    transition: background 0.2s;
+    flex-shrink: 0;
+  }
+  :root.light #theme-toggle .toggle-track { background: var(--accent2); }
+  #theme-toggle .toggle-thumb {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: var(--muted);
+    position: absolute;
+    top: 2px; left: 2px;
+    transition: transform 0.2s, background 0.2s;
+  }
+  :root.light #theme-toggle .toggle-thumb { transform: translateX(14px); background: #fff; }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Header ── */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-shrink: 0;
+  }
+  header h1 {
+    font-family: var(--sans);
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--accent2);
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+  }
+  header .tagline {
+    color: var(--muted);
+    font-size: 11px;
+    flex: 1;
+  }
+  .btn {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+    padding: 7px 16px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .btn:hover { background: var(--border); border-color: var(--accent); color: var(--accent2); }
+  .btn-primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+    font-weight: 700;
+  }
+  .btn-primary:hover { background: #2563eb; border-color: #2563eb; color: #fff; }
+  .btn-sm { padding: 4px 10px; font-size: 11px; }
+
+  /* ── Settings bar ── */
+  #settings-bar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 20px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    align-items: center;
+    flex-shrink: 0;
+  }
+  .setting-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .setting-group label {
+    color: var(--muted);
+    font-size: 11px;
+    white-space: nowrap;
+  }
+  .setting-group input[type=number] {
+    width: 70px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 4px 6px;
+  }
+  .setting-group input[type=number]:focus { outline: none; border-color: var(--accent); }
+  .toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    color: var(--text);
+    font-size: 11px;
+    user-select: none;
+  }
+  .toggle-label input[type=checkbox] { accent-color: var(--accent); width: 14px; height: 14px; }
+  .sep { width: 1px; height: 22px; background: var(--border); }
+
+  /* ── Prony sliders panel ── */
+  #prony-panel {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 20px;
+    display: none;
+    flex-wrap: wrap;
+    gap: 20px;
+    align-items: center;
+    flex-shrink: 0;
+  }
+  #prony-panel.visible { display: flex; }
+  .slider-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 200px;
+  }
+  .slider-group label { color: var(--muted); font-size: 11px; white-space: nowrap; }
+  .slider-group input[type=range] {
+    flex: 1;
+    accent-color: var(--accent2);
+    cursor: pointer;
+  }
+  .slider-val {
+    font-weight: 700;
+    color: var(--accent2);
+    min-width: 36px;
+    text-align: right;
+    font-size: 12px;
+  }
+
+  /* ── Main layout ── */
+  #main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    grid-template-rows: 1fr 1fr;
+    min-height: 0;
+    gap: 0;
+  }
+
+  /* left panes */
+  #input-pane, #output-pane {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+  #input-pane { border-bottom: 1px solid var(--border); }
+  .pane-header {
+    padding: 7px 12px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .pane-header .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--accent2);
+  }
+  textarea {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 10px 12px;
+    resize: none;
+    line-height: 1.6;
+  }
+  textarea::placeholder { color: var(--muted); }
+  #output-box {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px 12px;
+    font-size: 12px;
+    line-height: 1.7;
+    white-space: pre;
+    color: var(--text);
+  }
+  #output-box::-webkit-scrollbar { width: 5px; }
+  #output-box::-webkit-scrollbar-track { background: transparent; }
+  #output-box::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* right: chart pane */
+  #chart-pane {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    position: relative;
+  }
+  #chart-pane .pane-header { border-left: 1px solid var(--border); }
+  #chart-container {
+    flex: 1;
+    position: relative;
+    padding: 12px 16px 8px;
+    min-height: 0;
+  }
+  canvas#main-chart { display: block; }
+
+  /* compliance badges */
+  .badge {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .badge-pass { background: #14532d; color: var(--success); }
+  :root.light .badge-pass { background: #dcfce7; }
+  :root.light .badge-fail { background: #fee2e2; }
+  .badge-fail { background: #450a0a; color: var(--danger); }
+
+  /* status bar */
+  #statusbar {
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+    padding: 4px 20px;
+    font-size: 10px;
+    color: var(--muted);
+    display: flex;
+    gap: 20px;
+    flex-shrink: 0;
+  }
+  #statusbar span { color: var(--text); }
+
+  /* file input hidden */
+  #file-input { display: none; }
+
+  /* error toast */
+  #toast {
+    position: fixed;
+    bottom: 30px; left: 50%; transform: translateX(-50%);
+    background: var(--surface);
+    color: var(--danger);
+    border: 1px solid var(--danger);
+    border-radius: var(--radius);
+    padding: 8px 18px;
+    font-size: 12px;
+    display: none;
+    z-index: 999;
+    max-width: 500px;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header>
+  <h1>⚡ Generator Oscillation Damping Tool</h1>
+  <span class="tagline">Paste TAB/space-separated Time(s) and MW data, or load a file.</span>
+  <input type="file" id="file-input" accept=".csv,.txt,*">
+  <button id="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode">
+    <span id="theme-icon">☀️</span>
+    <div class="toggle-track"><div class="toggle-thumb"></div></div>
+    <span id="theme-label">Light</span>
+  </button>
+  <button class="btn" onclick="document.getElementById('file-input').click()">📂 Load File</button>
+  <button class="btn btn-primary" onclick="calculate()">▶ Calculate</button>
+</header>
+
+<!-- ── Settings bar ── -->
+<div id="settings-bar">
+  <div class="setting-group">
+    <label>Peaks (4–8 rec.)</label>
+    <input type="number" id="num-peaks" value="6" min="1" max="16">
+  </div>
+  <div class="setting-group">
+    <label>Prominence</label>
+    <input type="number" id="prominence" value="0.005" step="0.001" min="0">
+  </div>
+  <div class="setting-group">
+    <label>Smooth Window</label>
+    <input type="number" id="smooth-win" value="3" min="3" max="99">
+  </div>
+  <div class="sep"></div>
+  <label class="toggle-label">
+    <input type="checkbox" id="use-offset" checked>
+    Offset Removal
+  </label>
+  <div class="sep"></div>
+  <label class="toggle-label">
+    <input type="checkbox" id="use-prony" onchange="toggleProny()">
+    Full Prony Analysis
+  </label>
+</div>
+
+<!-- ── Prony slider panel ── -->
+<div id="prony-panel">
+  <div class="slider-group">
+    <label>Modes</label>
+    <input type="range" id="sl-modes" min="1" max="20" value="3" oninput="onSlider(this,'val-modes')">
+    <span class="slider-val" id="val-modes">3</span>
+  </div>
+  <div class="slider-group">
+    <label>Window (samples)</label>
+    <input type="range" id="sl-window" min="10" max="2000" value="237" oninput="onSlider(this,'val-window')">
+    <span class="slider-val" id="val-window">237</span>
+  </div>
+  <div class="slider-group">
+    <label>Energy Threshold (%)</label>
+    <input type="range" id="sl-energy" min="1" max="20" value="1" oninput="onSlider(this,'val-energy')">
+    <span class="slider-val" id="val-energy">1</span>
+  </div>
+</div>
+
+<!-- ── Main layout ── -->
+<div id="main">
+  <div id="input-pane">
+    <div class="pane-header"><div class="dot"></div>INPUT DATA</div>
+    <textarea id="input-box" placeholder="0.000   100.000&#10;0.020   102.345&#10;0.040   98.123&#10;..."></textarea>
+  </div>
+  <div id="output-pane">
+    <div class="pane-header"><div class="dot" style="background:var(--warn)"></div>RESULTS</div>
+    <div id="output-box">Results will appear here after Calculate.</div>
+  </div>
+  <div id="chart-pane">
+    <div class="pane-header" style="border-left:1px solid var(--border)"><div class="dot" style="background:var(--accent)"></div>SIGNAL &amp; FIT</div>
+    <div id="chart-container">
+      <canvas id="main-chart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- ── Status bar ── -->
+<div id="statusbar">
+  <div>Samples: <span id="st-samples">—</span></div>
+  <div>Duration: <span id="st-duration">—</span></div>
+  <div>Δt: <span id="st-dt">—</span></div>
+  <div>Mode: <span id="st-mode">—</span></div>
+  <div id="st-r2-wrap" style="display:none">R²: <span id="st-r2">—</span></div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ════════════════════════════════════════════════════════════════════
+//  CONSTANTS  (mirrors damping_tool.py)
+// ════════════════════════════════════════════════════════════════════
+const STEADY_STATE_TAIL = 50;
+const SG_POLY_ORDER     = 2;
+const MIN_PEAKS         = 1;
+const MAX_PEAKS         = 16;
+const COMPLIANCE_MIN_DAMPING_RATIO = 0.10;
+const COMPLIANCE_MAX_HALVING_TIME  = 5.00;
+const PRONY_FREQ_MIN_HZ = 0.10;
+const PRONY_FREQ_MAX_HZ = 5.00;
+
+// ════════════════════════════════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════════════════════════════════
+let cachedSignal = null;   // SignalData
+let chart        = null;   // Chart.js instance
+let debounceId   = null;
+
+// ════════════════════════════════════════════════════════════════════
+//  UI HELPERS
+// ════════════════════════════════════════════════════════════════════
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.display = 'block';
+  clearTimeout(showToast._id);
+  showToast._id = setTimeout(() => t.style.display = 'none', 4000);
+}
+function writeOutput(txt) {
+  document.getElementById('output-box').textContent = txt;
+}
+function setStatus(samples, duration, dt, mode) {
+  document.getElementById('st-samples').textContent  = samples ?? '—';
+  document.getElementById('st-duration').textContent = duration != null ? duration.toFixed(3)+'s' : '—';
+  document.getElementById('st-dt').textContent       = dt != null ? dt.toFixed(4)+'s' : '—';
+  document.getElementById('st-mode').textContent     = mode ?? '—';
+}
+function onSlider(el, valId) {
+  document.getElementById(valId).textContent = el.value;
+  debouncedRunProny();
+}
+function toggleProny() {
+  const on = document.getElementById('use-prony').checked;
+  document.getElementById('prony-panel').classList.toggle('visible', on);
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  FILE LOADING
+// ════════════════════════════════════════════════════════════════════
+document.getElementById('file-input').addEventListener('change', function() {
+  const file = this.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('input-box').value = e.target.result;
+  };
+  reader.readAsText(file);
+  this.value = '';
+});
+
+// ════════════════════════════════════════════════════════════════════
+//  SIGNAL PROCESSING  (JavaScript port of SignalProcessor)
+// ════════════════════════════════════════════════════════════════════
+
+// ── parse ─────────────────────────────────────────────────────────
+function parseTwoColumnText(text) {
+  const time = [], vals = [];
+  for (const line of text.split('\n')) {
+    const tokens = line.trim().split(/[\s,]+/);
+    if (tokens.length < 2) continue;
+    const t = parseFloat(tokens[0]), v = parseFloat(tokens[1]);
+    if (isNaN(t) || isNaN(v)) continue;
+    time.push(t); vals.push(v);
+  }
+  if (time.length < 2) throw new Error(`At least 2 numeric rows required; found ${time.length}.`);
+  return [new Float64Array(time), new Float64Array(vals)];
+}
+
+// ── Savitzky-Golay (order 2, any odd window) ──────────────────────
+function savgolFilter(y, w) {
+  // Compute S-G coefficients for polynomial order 2 via convolution
+  // For small windows we use exact formula; for larger we use LS per window.
+  const n = y.length;
+  const hw = (w - 1) / 2;
+  const out = new Float64Array(n);
+
+  // Pre-compute convolution weights for interior points
+  // Using the standard order-2 SG formula weights
+  const weights = [];
+  for (let i = -hw; i <= hw; i++) {
+    // Gram polynomial approach for order 2
+    // weight(i) = (3m²+3m-1-5i²) / ((2m-1)(2m+1)(2m+3)/3) * 3  where m=hw
+    const m = hw;
+    const num = (3*m*m + 3*m - 1 - 5*i*i);
+    const den = (2*m-1) * (2*m+1) * (2*m+3) / 3.0;
+    weights.push(num / den);
+  }
+
+  for (let j = 0; j < n; j++) {
+    let s = 0;
+    for (let k = 0; k < w; k++) {
+      let idx = j - hw + k;
+      // mirror boundary
+      if (idx < 0) idx = -idx;
+      if (idx >= n) idx = 2*(n-1) - idx;
+      idx = Math.max(0, Math.min(n-1, idx));
+      s += weights[k] * y[idx];
+    }
+    out[j] = s;
+  }
+  return out;
+}
+
+// ── preprocess ────────────────────────────────────────────────────
+function preprocess(time, values, removeOffset, smoothWin) {
+  if (values.length < SG_POLY_ORDER + 2)
+    throw new Error(`Signal too short (${values.length} samples).`);
+
+  let offset = 0;
+  if (removeOffset) {
+    const tail = Math.min(STEADY_STATE_TAIL, values.length);
+    let sum = 0;
+    for (let i = values.length - tail; i < values.length; i++) sum += values[i];
+    offset = sum / tail;
+  }
+
+  const detrended = new Float64Array(values.length);
+  for (let i = 0; i < values.length; i++) detrended[i] = values[i] - offset;
+
+  let w = Math.max(smoothWin, SG_POLY_ORDER + 1);
+  if (w % 2 === 0) w++;
+  const maxW = values.length % 2 !== 0 ? values.length : values.length - 1;
+  w = Math.min(w, maxW);
+
+  const smoothed = savgolFilter(detrended, w);
+
+  return { time, raw: values, detrended, smoothed, steadyStateOffset: offset };
+}
+
+// ── find peaks ────────────────────────────────────────────────────
+function findPeaks(arr, prominence) {
+  const peaks = [];
+  for (let i = 1; i < arr.length - 1; i++) {
+    if (arr[i] > arr[i-1] && arr[i] > arr[i+1]) peaks.push(i);
+  }
+  if (prominence <= 0) return peaks;
+  // Filter by prominence: peak value minus max of left/right base
+  return peaks.filter(p => {
+    let leftMin  = arr[p], rightMin = arr[p];
+    for (let i = p-1; i >= 0; i--) { if (arr[i] < leftMin) leftMin = arr[i]; if (arr[i] > arr[p]) break; }
+    for (let i = p+1; i < arr.length; i++) { if (arr[i] < rightMin) rightMin = arr[i]; if (arr[i] > arr[p]) break; }
+    return (arr[p] - Math.max(leftMin, rightMin)) >= prominence;
+  });
+}
+
+// ── Peak Envelope ─────────────────────────────────────────────────
+function runPeakEnvelope(signalData, numPeaks, prominence) {
+  const { smoothed, time, steadyStateOffset } = signalData;
+  const methodLabel = steadyStateOffset !== 0
+    ? 'OFFSET METHOD (Steady-State Removed)'
+    : 'DIRECT METHOD (No Offset Removal)';
+
+  let peakIdx = findPeaks(smoothed, prominence);
+  if (peakIdx.length === 0) throw new Error('No peaks detected. Try reducing Prominence.');
+
+  peakIdx = peakIdx.filter(i => smoothed[i] > 0);
+  if (peakIdx.length < 2) throw new Error(`Only ${peakIdx.length} positive peak(s); need ≥ 2. Reduce Prominence or smoothing.`);
+
+  const n = Math.max(MIN_PEAKS, Math.min(MAX_PEAKS, numPeaks));
+  peakIdx = peakIdx.slice(0, n);
+
+  const peakTimes  = peakIdx.map(i => time[i]);
+  const peakValues = peakIdx.map(i => smoothed[i]);
+
+  const pairs = [];
+  const zetaList = [], sigmaList = [], halfList = [];
+
+  for (let i = 0; i < peakValues.length - 1; i++) {
+    const y1 = peakValues[i], y2 = peakValues[i+1];
+    const t1 = peakTimes[i],  t2 = peakTimes[i+1];
+    if (y1 <= 0 || y2 <= 0) continue;
+    const delta  = Math.log(y1 / y2);
+    const dt     = t2 - t1;
+    const sigma  = delta / dt;
+    const zeta   = delta / Math.sqrt(4 * Math.PI**2 + delta**2);
+    const halfT  = sigma > 0 ? Math.LN2 / sigma : Infinity;
+    const freqHz = 1.0 / dt;
+    pairs.push({ pairIndex:i+1, time1:t1, peak1:y1, time2:t2, peak2:y2,
+                 logDecrement:delta, sigma, dampingRatio:zeta, frequencyHz:freqHz, halvingTime:halfT });
+    zetaList.push(zeta); sigmaList.push(sigma); halfList.push(halfT);
+  }
+  if (!pairs.length) throw new Error('All pairs skipped (non-positive). Check offset removal.');
+
+  const avg = arr => arr.reduce((a,b)=>a+b,0)/arr.length;
+  return {
+    methodLabel, pairs, peakTimes, peakValues,
+    avgDampingRatio: avg(zetaList),
+    avgSigma:        avg(sigmaList),
+    avgHalvingTime:  avg(halfList),
+  };
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  PRONY  (JavaScript port of _prony_decompose + run_prony)
+// ════════════════════════════════════════════════════════════════════
+
+// Complex number helpers
+const C = {
+  add:  (a,b) => ({re: a.re+b.re, im: a.im+b.im}),
+  sub:  (a,b) => ({re: a.re-b.re, im: a.im-b.im}),
+  mul:  (a,b) => ({re: a.re*b.re - a.im*b.im, im: a.re*b.im + a.im*b.re}),
+  div:  (a,b) => { const d=b.re*b.re+b.im*b.im; return {re:(a.re*b.re+a.im*b.im)/d, im:(a.im*b.re-a.re*b.im)/d}; },
+  exp:  (a)   => { const e=Math.exp(a.re); return {re: e*Math.cos(a.im), im: e*Math.sin(a.im)}; },
+  log:  (a)   => { const r=Math.sqrt(a.re*a.re+a.im*a.im); return {re: r>1e-300?Math.log(r):-690, im: Math.atan2(a.im,a.re)}; },
+  abs:  (a)   => Math.sqrt(a.re*a.re+a.im*a.im),
+  conj: (a)   => ({re:a.re, im:-a.im}),
+  scale:(a,s) => ({re:a.re*s, im:a.im*s}),
+};
+
+// Simple least-squares solver for real systems using normal equations + Cholesky-like
+// For small m, this is fine.  We use the full matrix formulation.
+function leastSquaresReal(A, b) {
+  // Normal equations: At*A*x = At*b
+  const m = A[0].length, n = A.length;
+  // At*A
+  const AtA = Array.from({length:m}, () => new Float64Array(m));
+  const Atb = new Float64Array(m);
+  for (let i=0;i<m;i++) for (let j=0;j<m;j++) for (let k=0;k<n;k++) AtA[i][j]+=A[k][i]*A[k][j];
+  for (let i=0;i<m;i++) for (let k=0;k<n;k++) Atb[i]+=A[k][i]*b[k];
+  // Gaussian elimination with partial pivoting
+  const aug = AtA.map((row,i) => [...row, Atb[i]]);
+  for (let col=0;col<m;col++) {
+    let maxR=col; for (let r=col+1;r<m;r++) if (Math.abs(aug[r][col])>Math.abs(aug[maxR][col])) maxR=r;
+    [aug[col],aug[maxR]]=[aug[maxR],aug[col]];
+    const piv=aug[col][col];
+    if (Math.abs(piv)<1e-14) continue;
+    for (let r=col+1;r<m;r++) { const f=aug[r][col]/piv; for (let c=col;c<=m;c++) aug[r][c]-=f*aug[col][c]; }
+  }
+  const x=new Float64Array(m);
+  for (let i=m-1;i>=0;i--) { x[i]=aug[i][m]; for (let j=i+1;j<m;j++) x[i]-=aug[i][j]*x[j]; x[i]/=aug[i][i]||1e-15; }
+  return x;
+}
+
+// Complex Vandermonde least-squares: solve V * a = s  (s real, a complex)
+function leastSquaresComplex(vandermonde, signal) {
+  // vandermonde: n x m array of complex; signal: n real
+  // Convert to real system: split real and imag parts
+  // V_real * a_real - V_imag * a_imag = s
+  // V_imag * a_real + V_real * a_imag = 0  (but signal is real, so imag residual = 0)
+  // Stack as [V_real | -V_imag; V_imag | V_real] * [a_re; a_im] = [s; 0]
+  const n=signal.length, m=vandermonde[0].length;
+  const A=[], b=[];
+  for (let i=0;i<n;i++) {
+    const row=[];
+    for (let j=0;j<m;j++) row.push(vandermonde[i][j].re);
+    for (let j=0;j<m;j++) row.push(-vandermonde[i][j].im);
+    A.push(row); b.push(signal[i]);
+  }
+  for (let i=0;i<n;i++) {
+    const row=[];
+    for (let j=0;j<m;j++) row.push(vandermonde[i][j].im);
+    for (let j=0;j<m;j++) row.push(vandermonde[i][j].re);
+    A.push(row); b.push(0);
+  }
+  const x=leastSquaresReal(A,b);
+  const amps=[];
+  for (let j=0;j<m;j++) amps.push({re:x[j], im:x[j+m]});
+  return amps;
+}
+
+// Polynomial roots via companion matrix eigenvalues (power iteration / QR not needed for m<=20)
+// We use a simple companion matrix + numerical eigenvalue approach
+function polyRoots(coeffs) {
+  // coeffs in descending order: coeffs[0]*x^n + ... + coeffs[n]
+  // Build companion matrix, find eigenvalues via iterative deflation
+  const n = coeffs.length - 1;
+  if (n === 0) return [];
+  const a = coeffs.map(c => c / coeffs[0]);  // monic
+
+  // Companion matrix C: n x n
+  // C[i][n-1] = -a[n-i],  C[i][i-1] = 1 for i>0
+  const C_mat = Array.from({length:n}, () => new Array(n).fill(0));
+  for (let i=0;i<n;i++) C_mat[i][n-1] = -a[n-i];   // last column: -a[n], -a[n-1],...,-a[1]
+  // Oops, standard form: C[i][i+1]=1 (superdiagonal), C[n-1][i]=-a[n-i]/(a[0] already 1)
+  // Let's redo properly:
+  const Cm = Array.from({length:n}, () => new Float64Array(n));
+  for (let i=1;i<n;i++) Cm[i][i-1] = 1;   // subdiagonal
+  for (let j=0;j<n;j++) Cm[0][j] = -a[j+1]; // top row
+
+  // Use the QR algorithm (simple Francis double-step) would be ideal,
+  // but for m<=20 we use a simple power-method per root + deflation.
+  // Actually: use the Aberth–Ehrlich method for speed
+  return aberthRoots(a, n);
+}
+
+function aberthRoots(monic, n) {
+  // monic[0]=1, monic[1..n] = coefficients of degree n-1 down to 0
+  const roots = [];
+  // Initial guesses: evenly spaced on unit circle
+  for (let k=0;k<n;k++) {
+    const angle = 2*Math.PI*k/n + 0.1;
+    roots.push({re: Math.cos(angle)*0.9, im: Math.sin(angle)*0.9});
+  }
+
+  function evalPoly(z) {
+    // Horner's method
+    let val = {re:monic[0], im:0};
+    for (let i=1;i<=n;i++) {
+      val = C.add(C.mul(val, z), {re:monic[i]||0, im:0});
+    }
+    return val;
+  }
+  function evalPolyDeriv(z) {
+    let val = {re:monic[0]*n, im:0};
+    for (let i=1;i<n;i++) {
+      val = C.add(C.mul(val, z), {re:monic[i]*(n-i), im:0});
+    }
+    return val;
+  }
+
+  for (let iter=0; iter<80; iter++) {
+    for (let k=0;k<n;k++) {
+      const fz = evalPoly(roots[k]);
+      const fp = evalPolyDeriv(roots[k]);
+      if (C.abs(fz) < 1e-14) continue;
+      let sum = {re:0, im:0};
+      for (let j=0;j<n;j++) if (j!==k) {
+        const diff = C.sub(roots[k], roots[j]);
+        if (C.abs(diff) < 1e-15) continue;
+        sum = C.add(sum, C.div({re:1,im:0}, diff));
+      }
+      const denom = C.sub(C.div(fp, fz), sum);
+      if (C.abs(denom) < 1e-15) continue;
+      const step = C.div({re:1,im:0}, denom);
+      roots[k] = C.sub(roots[k], step);
+    }
+  }
+  return roots;
+}
+
+function findActiveStart(signal, energyFraction) {
+  let peak = 0;
+  for (const v of signal) if (Math.abs(v) > peak) peak = Math.abs(v);
+  if (peak === 0) return 0;
+  const thresh = energyFraction * peak;
+  for (let i=0; i<signal.length; i++) if (Math.abs(signal[i]) >= thresh) return i;
+  return 0;
+}
+
+function pronyDecompose(timeWindow, sigWindow, numModes) {
+  const n = sigWindow.length, m = numModes;
+  if (n <= m) throw new Error(`Window length (${n}) must exceed num_modes (${m}).`);
+
+  // ── Step 1: Hankel matrix least-squares ────────────────────────
+  // Hankel[i][j] = sigWindow[i + (m-1-j)], shape (n-m, m)
+  const H = [], tgt = [];
+  for (let i=0; i<n-m; i++) {
+    const row = [];
+    for (let j=0; j<m; j++) row.push(sigWindow[i + (m-1-j)]);
+    H.push(row);
+    tgt.push(sigWindow[i+m]);
+  }
+  const d = leastSquaresReal(H, tgt);
+
+  // ── Step 2: Characteristic polynomial roots ─────────────────────
+  // z^m - d[0]*z^{m-1} - d[1]*z^{m-2} - ... - d[m-1] = 0
+  const charPoly = new Float64Array(m+1);
+  charPoly[0] = 1;
+  for (let i=0; i<m; i++) charPoly[i+1] = -d[i];  // ← correct (no reversal)
+  const roots = polyRoots(Array.from(charPoly));
+
+  // ── Step 3: Continuous-time exponents ────────────────────────────
+  const dt = timeWindow[1] - timeWindow[0];
+  const exponents = roots.map(z => {
+    const absZ = C.abs(z);
+    const safeZ = absZ > 1e-12 ? z : {re:1e-12, im:0};
+    return C.scale(C.log(safeZ), 1/dt);
+  });
+
+  // ── Step 4: Vandermonde amplitude fit ────────────────────────────
+  // V[i][k] = roots[k]^i
+  const V = [];
+  for (let i=0; i<n; i++) {
+    const row = roots.map(r => {
+      const absR = C.abs(r);
+      const safeR = absR > 1e-12 ? r : {re:1e-12, im:0};
+      // r^i iteratively
+      let val = {re:1, im:0};
+      for (let k=0; k<i; k++) val = C.mul(val, safeR);
+      return val;
+    });
+    V.push(row);
+  }
+  const amplitudes = leastSquaresComplex(V, Array.from(sigWindow));
+
+  return { amplitudes, exponents };
+}
+
+function runProny(signalData, numModes, windowLength, energyFraction) {
+  const { time, detrended } = signalData;
+  const iStart = findActiveStart(detrended, energyFraction);
+  let iEnd = Math.min(iStart + windowLength, time.length);
+  if ((iEnd - iStart) <= numModes) iEnd = Math.min(iStart + numModes + 2, time.length);
+
+  const timeWin = time.slice(iStart, iEnd);
+  const sigWin  = detrended.slice(iStart, iEnd);
+
+  const { amplitudes, exponents } = pronyDecompose(
+    Array.from(timeWin), Array.from(sigWin), numModes
+  );
+
+  // Reconstruct over active window
+  const t0 = timeWin[0];
+  const fittedWin = new Float64Array(timeWin.length);
+  for (let i=0; i<timeWin.length; i++) {
+    const tRel = timeWin[i] - t0;
+    let sum = 0;
+    for (let k=0; k<amplitudes.length; k++) {
+      const b = exponents[k];
+      const ex = C.exp({re: b.re*tRel, im: b.im*tRel});
+      sum += amplitudes[k].re * ex.re - amplitudes[k].im * ex.im;
+    }
+    fittedWin[i] = sum;
+  }
+
+  const fittedFull = new Float64Array(time.length);
+  for (let i=0; i<timeWin.length; i++) fittedFull[iStart+i] = fittedWin[i];
+
+  // Filter modes
+  const modes = [];
+  for (let k=0; k<amplitudes.length; k++) {
+    const amp = amplitudes[k];
+    const exp = exponents[k];
+    const dampingRate = -exp.re;  // σ (positive = decaying)
+    const angularFreq =  exp.im;  // ω (rad/s)
+    const freqHz = Math.abs(angularFreq) / (2*Math.PI);
+    if (angularFreq < 0) continue;
+    if (freqHz < PRONY_FREQ_MIN_HZ || freqHz > PRONY_FREQ_MAX_HZ) continue;
+    if (dampingRate <= 0) continue;
+    const physAmp = 2 * C.abs(amp);
+    const zeta = dampingRate / Math.sqrt(dampingRate**2 + angularFreq**2);
+    modes.push({ index:k+1, amplitude:physAmp, frequencyHz:freqHz, dampingRate, dampingRatio:zeta });
+  }
+  modes.sort((a,b) => b.amplitude - a.amplitude);
+
+  // R² over active window
+  let sigMean=0; for (const v of sigWin) sigMean+=v; sigMean/=sigWin.length;
+  let ssRes=0, ssTot=0;
+  for (let i=0; i<sigWin.length; i++) {
+    ssRes += (sigWin[i] - fittedWin[i])**2;
+    ssTot += (sigWin[i] - sigMean)**2;
+  }
+  const r2 = ssTot>0 ? 1 - ssRes/ssTot : 0;
+
+  return { modes, fittedSignal:fittedFull, rSquared:r2, activeStart:iStart, activeEnd:iEnd };
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  CHART.JS SETUP & UPDATE
+// ════════════════════════════════════════════════════════════════════
+function initChart() {
+  if (chart) return;
+  const ctx = document.getElementById('main-chart').getContext('2d');
+  chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [
+        { label: 'Original Signal', data: [], borderColor: '#3b82f6', borderWidth: 1.5,
+          pointRadius: 0, tension: 0, fill: false },
+        { label: 'Smoothed Signal', data: [], borderColor: '#f59e0b', borderWidth: 1.5,
+          pointRadius: 0, tension: 0, fill: false },
+        { label: 'Peaks', data: [], borderColor: '#ef4444', backgroundColor: '#ef4444',
+          pointRadius: 6, pointStyle: 'circle', showLine: false },
+        { label: 'Prony Fit', data: [], borderColor: '#22d3ee', borderWidth: 2,
+          borderDash: [5,3], pointRadius: 0, tension: 0, fill: false },
+        { label: 'Analysis Window', data: [], borderColor: 'rgba(59,130,246,0.15)',
+          backgroundColor: 'rgba(59,130,246,0.10)', fill: true,
+          pointRadius: 0, borderWidth: 0, tension: 0 },
+      ],
+    },
+    options: {
+      animation: false,
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          labels: { color: '#94a3b8', font: { family: 'JetBrains Mono', size: 11 } }
+        },
+        tooltip: {
+          backgroundColor: '#131720',
+          borderColor: '#252d40',
+          borderWidth: 1,
+          titleColor: '#e2e8f0',
+          bodyColor: '#94a3b8',
+          titleFont: { family: 'JetBrains Mono' },
+          bodyFont:  { family: 'JetBrains Mono' },
+        },
+      },
+      scales: {
+        x: {
+          type: 'linear',
+          title: { display: true, text: 'Time (s)', color: '#64748b',
+                   font: { family: 'JetBrains Mono', size: 11 } },
+          ticks: { color: '#64748b', font: { family: 'JetBrains Mono', size: 10 }, maxTicksLimit: 12 },
+          grid: { color: getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim() || '#1a2030' },
+        },
+        y: {
+          title: { display: true, text: 'MW', color: '#64748b',
+                   font: { family: 'JetBrains Mono', size: 11 } },
+          ticks: { color: '#64748b', font: { family: 'JetBrains Mono', size: 10 } },
+          grid: { color: getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim() || '#1a2030' },
+        },
+      },
+    },
+  });
+}
+
+function updateChart(signalData, peakResult, pronyResult) {
+  initChart();
+  const { time, raw, smoothed, steadyStateOffset: off } = signalData;
+  const labels = Array.from(time);
+
+  // Dataset 0: original
+  chart.data.labels = labels;
+  chart.data.datasets[0].data = Array.from(raw).map((v,i) => ({x: time[i], y: v}));
+
+  // Dataset 1: smoothed (shifted back by offset)
+  chart.data.datasets[1].data = Array.from(smoothed).map((v,i) => ({x: time[i], y: v+off}));
+
+  // Dataset 2: peaks
+  if (peakResult) {
+    chart.data.datasets[2].data = peakResult.peakTimes.map((t,i) => ({x:t, y:peakResult.peakValues[i]+off}));
+    chart.data.datasets[2].hidden = false;
+  } else {
+    chart.data.datasets[2].data = [];
+    chart.data.datasets[2].hidden = true;
+  }
+
+  // Dataset 3: Prony fit
+  if (pronyResult) {
+    chart.data.datasets[3].data = Array.from(pronyResult.fittedSignal).map((v,i) => ({x:time[i], y:v+off}));
+    chart.data.datasets[3].label = `Prony Fit  (R²=${pronyResult.rSquared.toFixed(4)})`;
+    chart.data.datasets[3].hidden = false;
+  } else {
+    chart.data.datasets[3].data = [];
+    chart.data.datasets[3].hidden = true;
+  }
+
+  // Dataset 4: analysis window shading (fill between two flat lines at min/max y)
+  if (pronyResult) {
+    const t0 = time[pronyResult.activeStart];
+    const t1 = time[Math.min(pronyResult.activeEnd, time.length-1)];
+    // Create a band by plotting the window boundaries
+    // We simulate axvspan by adding two points at the y extremes for fill
+    const yMin = Math.min(...Array.from(raw));
+    const yMax = Math.max(...Array.from(raw));
+    // Use a step dataset spanning just t0..t1
+    chart.data.datasets[4].data = [
+      {x:t0, y:yMax+Math.abs(yMax)*0.05},
+      {x:t1, y:yMax+Math.abs(yMax)*0.05},
+    ];
+    chart.data.datasets[4].hidden = false;
+  } else {
+    chart.data.datasets[4].data = [];
+    chart.data.datasets[4].hidden = true;
+  }
+
+  chart.update('none');   // 'none' = skip animation → instant
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  RESULT FORMATTING
+// ════════════════════════════════════════════════════════════════════
+function pad(str, w) { return String(str).padStart(w); }
+function fmtPeakResult(result) {
+  const cols = ['Pair','Time1(s)','Peak1','Time2(s)','Peak2','LogDec','Sigma','DampRatio','Freq(Hz)','HalfT(s)'];
+  const widths = [5, 9, 10, 9, 10, 10, 10, 10, 9, 10];
+  const header = cols.map((c,i) => pad(c,widths[i])).join(' ');
+  const sep = '-'.repeat(header.length);
+  const rows = result.pairs.map(p => [
+    pad(p.pairIndex, widths[0]),
+    pad(p.time1.toFixed(4), widths[1]),
+    pad(p.peak1.toFixed(4), widths[2]),
+    pad(p.time2.toFixed(4), widths[3]),
+    pad(p.peak2.toFixed(4), widths[4]),
+    pad(p.logDecrement.toFixed(6), widths[5]),
+    pad(p.sigma.toFixed(6), widths[6]),
+    pad(p.dampingRatio.toFixed(6), widths[7]),
+    pad(p.frequencyHz.toFixed(4), widths[8]),
+    pad(p.halvingTime === Infinity ? 'Inf' : p.halvingTime.toFixed(4), widths[9]),
+  ].join(' ')).join('\n');
+
+  const zetaPass = result.avgDampingRatio >= COMPLIANCE_MIN_DAMPING_RATIO;
+  const halfPass = result.avgHalvingTime  <= COMPLIANCE_MAX_HALVING_TIME;
+
+  return [
+    `===== ${result.methodLabel} =====\n`,
+    header, sep, rows,
+    '',
+    `Average Damping Ratio  = ${result.avgDampingRatio.toFixed(4)}`,
+    `Average Sigma          = ${result.avgSigma.toFixed(4)} Np/s`,
+    `Average Halving Time   = ${result.avgHalvingTime.toFixed(4)} s`,
+    '',
+    '===== COMPLIANCE CHECK =====',
+    `${zetaPass?'PASS ✓':'FAIL ✗'}  Damping Ratio (${zetaPass?'≥':'<'} ${COMPLIANCE_MIN_DAMPING_RATIO})`,
+    `${halfPass?'PASS ✓':'FAIL ✗'}  Halving Time  (${halfPass?'≤':'>'} ${COMPLIANCE_MAX_HALVING_TIME} s)`,
+  ].join('\n');
+}
+
+function fmtPronyResult(result, numModes, windowLen, signalData) {
+  const t  = signalData.time;
+  const t0 = t[result.activeStart];
+  const t1 = t[Math.min(result.activeEnd, t.length-1)];
+  const activeSamples = result.activeEnd - result.activeStart;
+
+  const lines = [
+    `Prony Analysis  |  Modes=${numModes}  Window=${windowLen} samples`,
+    '='.repeat(60),
+    `Active window: [${result.activeStart}–${result.activeEnd}]  (${t0.toFixed(3)}s – ${t1.toFixed(3)}s,  ${activeSamples} samples)`,
+    '',
+  ];
+
+  if (!result.modes.length) {
+    lines.push(
+      `⚠  No modes found in [${PRONY_FREQ_MIN_HZ}, ${PRONY_FREQ_MAX_HZ}] Hz with positive damping.`,
+      'Try increasing Modes or Window, or lowering Energy Threshold.',
+    );
+  } else {
+    const hdr = `${'Mode'.padStart(5)} ${'Amp'.padStart(10)} ${'Freq(Hz)'.padStart(9)} ${'σ(Np/s)'.padStart(9)} ${'ζ'.padStart(8)}`;
+    const sep = '-'.repeat(hdr.length);
+    lines.push(hdr, sep);
+    for (const m of result.modes) {
+      lines.push(
+        `${String(m.index).padStart(5)} ${m.amplitude.toFixed(5).padStart(10)} ${m.frequencyHz.toFixed(4).padStart(9)} ${m.dampingRate.toFixed(4).padStart(9)} ${m.dampingRatio.toFixed(4).padStart(8)}`
+      );
+    }
+  }
+  lines.push('', `R² = ${result.rSquared.toFixed(6)}`);
+  return lines.join('\n');
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  MAIN CALCULATE
+// ════════════════════════════════════════════════════════════════════
+function calculate() {
+  const rawText   = document.getElementById('input-box').value;
+  const numPeaks  = parseInt(document.getElementById('num-peaks').value) || 6;
+  const prominence = parseFloat(document.getElementById('prominence').value) || 0.005;
+  const smoothWin = parseInt(document.getElementById('smooth-win').value) || 3;
+  const useOffset = document.getElementById('use-offset').checked;
+  const useProny  = document.getElementById('use-prony').checked;
+
+  let time, vals;
+  try { [time, vals] = parseTwoColumnText(rawText); }
+  catch(e) { showToast('Parse error: ' + e.message); return; }
+
+  let signalData;
+  try { signalData = preprocess(time, vals, useOffset, smoothWin); }
+  catch(e) { showToast('Pre-processing error: ' + e.message); return; }
+
+  cachedSignal = signalData;
+
+  const dt = time.length>1 ? time[1]-time[0] : 0;
+  const mode = useProny ? 'Prony' : 'Peak Envelope';
+  setStatus(time.length, time[time.length-1]-time[0], dt, mode);
+
+  if (useProny) {
+    runPronyAndDisplay();
+  } else {
+    runPeakAndDisplay();
+  }
+}
+
+function runPeakAndDisplay() {
+  const numPeaks   = parseInt(document.getElementById('num-peaks').value) || 6;
+  const prominence = parseFloat(document.getElementById('prominence').value) || 0.005;
+
+  let result;
+  try { result = runPeakEnvelope(cachedSignal, numPeaks, prominence); }
+  catch(e) { showToast('Peak detection error: ' + e.message); return; }
+
+  writeOutput(fmtPeakResult(result));
+  updateChart(cachedSignal, result, null);
+  document.getElementById('st-r2-wrap').style.display = 'none';
+}
+
+function runPronyAndDisplay() {
+  if (!cachedSignal) return;
+  const numModes   = parseInt(document.getElementById('sl-modes').value) || 3;
+  const windowLen  = parseInt(document.getElementById('sl-window').value) || 237;
+  const energyPct  = (parseInt(document.getElementById('sl-energy').value) || 1) / 100;
+
+  let result;
+  try { result = runProny(cachedSignal, numModes, windowLen, energyPct); }
+  catch(e) { showToast('Prony error: ' + e.message); writeOutput('Prony error: ' + e.message); return; }
+
+  writeOutput(fmtPronyResult(result, numModes, windowLen, cachedSignal));
+  updateChart(cachedSignal, null, result);
+
+  document.getElementById('st-r2-wrap').style.display = '';
+  document.getElementById('st-r2').textContent = result.rSquared.toFixed(6);
+}
+
+// ── Debounced slider handler ───────────────────────────────────────
+function debouncedRunProny() {
+  clearTimeout(debounceId);
+  debounceId = setTimeout(() => {
+    if (cachedSignal && document.getElementById('use-prony').checked) {
+      runPronyAndDisplay();
+    }
+  }, 80);
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  CHART RESIZE HANDLER
+// ════════════════════════════════════════════════════════════════════
+function resizeChart() {
+  const pane = document.getElementById('chart-container');
+  const canvas = document.getElementById('main-chart');
+  canvas.style.height = (pane.clientHeight - 10) + 'px';
+  if (chart) chart.resize();
+}
+window.addEventListener('resize', resizeChart);
+window.addEventListener('load', () => { initChart(); resizeChart(); });
+
+// ════════════════════════════════════════════════════════════════════
+//  THEME TOGGLE
+// ════════════════════════════════════════════════════════════════════
+let isDark = true;
+
+function toggleTheme() {
+  isDark = !isDark;
+  const root = document.documentElement;
+  const icon  = document.getElementById('theme-icon');
+  const label = document.getElementById('theme-label');
+
+  if (isDark) {
+    root.classList.remove('light');
+    icon.textContent  = '☀️';
+    label.textContent = 'Light';
+  } else {
+    root.classList.add('light');
+    icon.textContent  = '🌙';
+    label.textContent = 'Dark';
+  }
+
+  // Update chart colors to match new theme
+  if (chart) {
+    const gridColor  = isDark ? '#1a2030' : '#e2e8f0';
+    const tickColor  = isDark ? '#64748b' : '#64748b';
+    const legendColor = isDark ? '#94a3b8' : '#334155';
+
+    chart.options.scales.x.grid.color  = gridColor;
+    chart.options.scales.y.grid.color  = gridColor;
+    chart.options.scales.x.ticks.color = tickColor;
+    chart.options.scales.y.ticks.color = tickColor;
+    chart.options.scales.x.title.color = tickColor;
+    chart.options.scales.y.title.color = tickColor;
+    chart.options.plugins.legend.labels.color = legendColor;
+    chart.options.plugins.tooltip.backgroundColor = isDark ? '#131720' : '#ffffff';
+    chart.options.plugins.tooltip.borderColor     = isDark ? '#252d40' : '#cbd5e1';
+    chart.options.plugins.tooltip.titleColor      = isDark ? '#e2e8f0' : '#0f172a';
+    chart.options.plugins.tooltip.bodyColor       = isDark ? '#94a3b8' : '#475569';
+
+    // Update dataset colors
+    chart.data.datasets[0].borderColor = isDark ? '#3b82f6' : '#2563eb';
+    chart.data.datasets[1].borderColor = isDark ? '#f59e0b' : '#d97706';
+    chart.data.datasets[2].borderColor = isDark ? '#ef4444' : '#dc2626';
+    chart.data.datasets[2].backgroundColor = isDark ? '#ef4444' : '#dc2626';
+    chart.data.datasets[3].borderColor = isDark ? '#22d3ee' : '#0891b2';
+    chart.data.datasets[4].borderColor = isDark ? 'rgba(59,130,246,0.15)' : 'rgba(37,99,235,0.15)';
+    chart.data.datasets[4].backgroundColor = isDark ? 'rgba(59,130,246,0.10)' : 'rgba(37,99,235,0.08)';
+
+    chart.update('none');
+  }
+}
+</script>
+</body>
+</html>
