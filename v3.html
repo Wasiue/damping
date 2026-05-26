@@ -1,0 +1,2354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Generator Oscillation Damping Tool v2</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.1/chartjs-plugin-zoom.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Syne:wght@400;600;700;800&display=swap');
+
+:root {
+  --bg:#0b0e14;--surface:#131720;--surface2:#1a2030;--border:#252d40;
+  --accent:#3b82f6;--accent2:#22d3ee;--warn:#f59e0b;--danger:#ef4444;
+  --success:#22c55e;--text:#e2e8f0;--muted:#64748b;--purple:#a855f7;
+  --mono:'JetBrains Mono',monospace;--sans:'Syne',sans-serif;--radius:6px;
+  --chart-grid:#1a2030;
+}
+:root.light {
+  --bg:#f1f5f9;--surface:#ffffff;--surface2:#e2e8f0;--border:#cbd5e1;
+  --accent:#2563eb;--accent2:#0891b2;--warn:#d97706;--danger:#dc2626;
+  --success:#16a34a;--text:#0f172a;--muted:#64748b;--purple:#7c3aed;--chart-grid:#e2e8f0;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--mono);font-size:13px;
+  height:100vh;display:flex;flex-direction:column;overflow:hidden}
+
+/* ── Header ── */
+header{background:var(--surface);border-bottom:1px solid var(--border);
+  padding:8px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0;flex-wrap:wrap}
+header h1{font-family:var(--sans);font-size:14px;font-weight:800;color:var(--accent2);
+  letter-spacing:.02em;white-space:nowrap}
+header .ver{font-size:9px;color:var(--muted);background:var(--surface2);border:1px solid var(--border);
+  border-radius:10px;padding:1px 7px;font-weight:700;letter-spacing:.1em}
+header .tagline{color:var(--muted);font-size:10px;flex:1;min-width:0}
+.btn{font-family:var(--mono);font-size:11px;font-weight:500;padding:5px 12px;
+  border-radius:var(--radius);border:1px solid var(--border);background:var(--surface2);
+  color:var(--text);cursor:pointer;transition:all .15s;white-space:nowrap}
+.btn:hover{background:var(--border);border-color:var(--accent);color:var(--accent2)}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}
+.btn-primary:hover{background:#2563eb;border-color:#2563eb;color:#fff}
+.btn-success{background:var(--success);border-color:var(--success);color:#000;font-weight:700}
+.btn-success:hover{filter:brightness(1.1)}
+#theme-toggle{font-family:var(--mono);font-size:11px;background:var(--surface2);
+  border:1px solid var(--border);border-radius:20px;color:var(--text);cursor:pointer;
+  padding:4px 10px;display:flex;align-items:center;gap:5px;transition:all .2s;white-space:nowrap}
+#theme-toggle:hover{border-color:var(--accent2);color:var(--accent2)}
+#theme-toggle .toggle-track{width:26px;height:14px;border-radius:8px;background:var(--border);
+  position:relative;transition:background .2s;flex-shrink:0}
+:root.light #theme-toggle .toggle-track{background:var(--accent2)}
+#theme-toggle .toggle-thumb{width:10px;height:10px;border-radius:50%;background:var(--muted);
+  position:absolute;top:2px;left:2px;transition:transform .2s,background .2s}
+:root.light #theme-toggle .toggle-thumb{transform:translateX(12px);background:#fff}
+
+/* ── Study mode bar ── */
+#study-bar{background:var(--surface);border-bottom:2px solid var(--border);
+  padding:5px 16px;display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap}
+#study-bar .sb-label{font-size:9px;font-weight:700;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--muted);margin-right:4px;white-space:nowrap}
+.study-btn{font-family:var(--mono);font-size:10px;padding:3px 10px;border-radius:12px;
+  border:1px solid var(--border);background:var(--bg);color:var(--muted);cursor:pointer;
+  transition:all .15s;white-space:nowrap}
+.study-btn:hover{border-color:var(--accent);color:var(--accent2)}
+.study-btn.active{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}
+.sb-sep{width:1px;height:18px;background:var(--border)}
+
+/* ── Settings bar ── */
+#settings-bar{background:var(--surface);border-bottom:1px solid var(--border);
+  padding:6px 16px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;flex-shrink:0}
+.setting-group{display:flex;align-items:center;gap:5px}
+.setting-group label{color:var(--muted);font-size:10px;white-space:nowrap}
+.setting-group input[type=number],.setting-group select{
+  background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);
+  color:var(--text);font-family:var(--mono);font-size:10px;padding:2px 5px}
+.setting-group input[type=number]{width:65px}
+.setting-group select{max-width:130px;cursor:pointer}
+.setting-group input:focus,.setting-group select:focus{outline:none;border-color:var(--accent)}
+.toggle-label{display:flex;align-items:center;gap:4px;cursor:pointer;
+  color:var(--text);font-size:10px;user-select:none}
+.toggle-label input[type=checkbox]{accent-color:var(--accent);width:12px;height:12px}
+.sep{width:1px;height:18px;background:var(--border)}
+
+/* ── Algorithm panel ── */
+#algo-panel{background:var(--surface);border-bottom:1px solid var(--border);
+  padding:6px 16px;display:none;flex-wrap:wrap;gap:16px;align-items:center;flex-shrink:0}
+#algo-panel.visible{display:flex}
+.slider-group{display:flex;align-items:center;gap:6px;min-width:170px}
+.slider-group label{color:var(--muted);font-size:10px;white-space:nowrap}
+.slider-group input[type=range]{flex:1;accent-color:var(--accent2);cursor:pointer}
+.slider-val{font-weight:700;color:var(--accent2);min-width:32px;text-align:right;font-size:11px}
+
+/* ── Main layout ── */
+#main{flex:1;display:grid;grid-template-columns:360px 1fr;grid-template-rows:1fr 1fr;
+  min-height:0;overflow:hidden}
+#input-pane,#output-pane{background:var(--surface);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;min-height:0;overflow:hidden}
+#input-pane{border-bottom:1px solid var(--border)}
+.pane-header{padding:5px 10px;font-size:9px;font-weight:700;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--muted);background:var(--bg);
+  border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px;flex-shrink:0}
+.pane-header .dot{width:6px;height:6px;border-radius:50%;background:var(--accent2)}
+.pane-header .actions{margin-left:auto;display:flex;gap:4px}
+textarea{flex:1;background:transparent;border:none;outline:none;color:var(--text);
+  font-family:var(--mono);font-size:10px;padding:8px 10px;resize:none;line-height:1.6}
+textarea::placeholder{color:var(--muted)}
+#output-box{flex:1;overflow-y:auto;padding:8px 10px;font-size:10px;line-height:1.7;
+  white-space:pre;color:var(--text)}
+#output-box::-webkit-scrollbar{width:4px}
+#output-box::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+/* right: tabbed chart pane */
+#chart-pane{grid-column:2;grid-row:1/span 2;background:var(--bg);
+  display:flex;flex-direction:column;min-height:0}
+.tab-bar{display:flex;gap:0;border-bottom:1px solid var(--border);
+  background:var(--surface);flex-shrink:0;padding:0 10px;overflow-x:auto}
+.tab{padding:6px 14px;font-size:9px;font-weight:700;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;
+  transition:all .15s;user-select:none;white-space:nowrap;flex-shrink:0}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--accent2);border-bottom-color:var(--accent2)}
+.tab-panel{display:none;flex:1;min-height:0;flex-direction:column}
+.tab-panel.active{display:flex}
+
+/* chart toolbar */
+#chart-toolbar{display:flex;align-items:center;gap:5px;padding:4px 12px;
+  border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;flex-wrap:wrap}
+#chart-toolbar .tb-label{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.tb-btn{font-family:var(--mono);font-size:9px;padding:3px 8px;border-radius:4px;
+  border:1px solid var(--border);background:var(--surface2);color:var(--text);
+  cursor:pointer;transition:all .12s;white-space:nowrap}
+.tb-btn:hover{border-color:var(--accent);color:var(--accent2)}
+.tb-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.tb-sep{width:1px;height:14px;background:var(--border);margin:0 2px}
+
+/* window strip */
+#prony-window-strip{display:none;padding:3px 12px;font-size:10px;color:var(--muted);
+  background:var(--surface);border-bottom:1px solid var(--border);
+  flex-shrink:0;align-items:center;gap:12px;flex-wrap:wrap}
+#prony-window-strip.visible{display:flex}
+#prony-window-strip span{color:var(--accent2);font-weight:700}
+#prony-window-strip .pw-hint{color:var(--muted);font-style:italic;font-size:9px}
+
+/* chart containers */
+#chart-overlay-wrap{position:relative;flex:1;min-height:0;display:flex;flex-direction:column}
+#chart-container{flex:1;position:relative;padding:8px 12px 5px;min-height:0}
+canvas#main-chart{display:block}
+#handle-canvas{position:absolute;top:0;left:0;width:100%;height:100%;
+  pointer-events:none;z-index:10}
+#handle-canvas.active{pointer-events:auto}
+
+/* PSD panel */
+#psd-container{flex:1;position:relative;padding:8px 12px 5px;min-height:0}
+canvas#psd-chart{display:block}
+#psd-info{padding:5px 12px;font-size:10px;color:var(--muted);
+  border-top:1px solid var(--border);flex-shrink:0;display:flex;gap:16px;flex-wrap:wrap}
+#psd-info span{color:var(--text)}
+
+/* Spectrogram tab */
+#spectrogram-container{flex:1;position:relative;padding:8px 12px 5px;min-height:0;display:flex;flex-direction:column}
+#spectrogram-canvas{flex:1;width:100%;display:block}
+#spectrogram-info{padding:5px 12px;font-size:10px;color:var(--muted);border-top:1px solid var(--border);flex-shrink:0}
+
+/* Stabilization diagram */
+#stab-container{flex:1;position:relative;padding:8px 12px 5px;min-height:0}
+canvas#stab-chart{display:block}
+#stab-info{padding:5px 12px;font-size:10px;color:var(--muted);border-top:1px solid var(--border);flex-shrink:0}
+
+/* Metrics panel */
+#metrics-panel{flex:1;overflow-y:auto;padding:12px;display:flex;flex-wrap:wrap;
+  gap:10px;align-content:flex-start}
+.metric-card{background:var(--surface);border:1px solid var(--border);
+  border-radius:8px;padding:10px 14px;min-width:160px;flex:1}
+.metric-card .mc-label{font-size:9px;font-weight:700;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--muted);margin-bottom:5px}
+.metric-card .mc-value{font-size:20px;font-weight:700;color:var(--text);
+  font-family:var(--sans);line-height:1.1}
+.metric-card .mc-unit{font-size:10px;color:var(--muted);margin-top:2px}
+.metric-card .mc-sub{font-size:10px;color:var(--muted);margin-top:3px;font-style:italic}
+.metric-card .mc-conf{font-size:9px;font-weight:700;letter-spacing:.08em;margin-top:4px;
+  padding:2px 6px;border-radius:3px;display:inline-block}
+.metric-card.pass{border-color:var(--success)}.metric-card.fail{border-color:var(--danger)}
+.metric-card.warn{border-color:var(--warn)}
+.metric-card .mc-value.pass{color:var(--success)}.metric-card .mc-value.fail{color:var(--danger)}
+.metric-card .mc-value.warn{color:var(--warn)}
+.conf-high{background:rgba(34,197,94,0.15);color:var(--success)}
+.conf-med{background:rgba(245,158,11,0.15);color:var(--warn)}
+.conf-low{background:rgba(239,68,68,0.15);color:var(--danger)}
+.section-title{width:100%;font-size:9px;font-weight:700;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--muted);padding:4px 0 2px;border-bottom:1px solid var(--border)}
+
+/* Comparison panel */
+#compare-panel{flex:1;overflow:auto;padding:12px}
+.compare-table{width:100%;border-collapse:collapse;font-size:10px}
+.compare-table th,.compare-table td{padding:5px 10px;text-align:left;border-bottom:1px solid var(--border)}
+.compare-table th{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.compare-table tr:hover td{background:var(--surface2)}
+.compare-table .best{color:var(--success);font-weight:700}
+.compare-table .poor{color:var(--danger)}
+
+/* status bar */
+#statusbar{background:var(--bg);border-top:1px solid var(--border);padding:3px 16px;
+  font-size:9px;color:var(--muted);display:flex;gap:16px;flex-shrink:0;flex-wrap:wrap}
+#statusbar span{color:var(--text)}
+#statusbar .warn-text{color:var(--warn)}
+
+/* col select */
+#col-select-row{display:none;align-items:center;gap:6px;font-size:10px;color:var(--muted)}
+#col-select-row.visible{display:flex}
+#col-select-row select{font-family:var(--mono);font-size:10px;background:var(--surface2);
+  border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:2px 5px}
+
+/* toast */
+#file-input{display:none}
+#toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);
+  background:var(--surface);color:var(--accent2);border:1px solid var(--accent2);
+  border-radius:var(--radius);padding:6px 14px;font-size:11px;display:none;
+  z-index:999;max-width:500px;text-align:center}
+#toast.err{color:var(--danger);border-color:var(--danger)}
+
+/* mode badge */
+.mode-badge{display:inline-block;font-size:8px;font-weight:700;letter-spacing:.1em;
+  text-transform:uppercase;padding:1px 6px;border-radius:3px;margin-left:4px}
+.mb-mp{background:rgba(168,85,247,0.2);color:var(--purple)}
+.mb-pr{background:rgba(34,211,238,0.2);color:var(--accent2)}
+.mb-pk{background:rgba(245,158,11,0.2);color:var(--warn)}
+</style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header>
+  <h1>⚡ Generator Oscillation Damping Tool</h1>
+  <span class="ver">v2.0</span>
+  <span class="tagline">Matrix Pencil · Prony · Peak Envelope · Spectrogram · Stabilization · Compliance</span>
+  <input type="file" id="file-input" accept=".csv,.txt,*">
+  <button id="theme-toggle" onclick="toggleTheme()">
+    <span id="theme-icon">☀️</span>
+    <div class="toggle-track"><div class="toggle-thumb"></div></div>
+    <span id="theme-label">Light</span>
+  </button>
+  <button class="btn" onclick="document.getElementById('file-input').click()">📂 Load File</button>
+  <button class="btn btn-primary" onclick="calculate()" title="Enter to calculate">▶ Calculate</button>
+  <button class="btn" onclick="exportCSV()">⬇ CSV</button>
+  <button class="btn" onclick="exportReport()">📄 Report</button>
+</header>
+
+<!-- ── Study Mode Bar ── -->
+<div id="study-bar">
+  <span class="sb-label">Study Mode</span>
+  <button class="study-btn active" onclick="setStudyMode('general')" id="sm-general">General</button>
+  <button class="study-btn" onclick="setStudyMode('interarea')" id="sm-interarea">Inter-Area Osc.</button>
+  <button class="study-btn" onclick="setStudyMode('localplant')" id="sm-localplant">Local Plant Mode</button>
+  <button class="study-btn" onclick="setStudyMode('faultringdown')" id="sm-faultringdown">Fault Ringdown</button>
+  <button class="study-btn" onclick="setStudyMode('voltstep')" id="sm-voltstep">Voltage Step Test</button>
+  <button class="study-btn" onclick="setStudyMode('pssvalidation')" id="sm-pssvalidation">PSS Validation</button>
+  <button class="study-btn" onclick="setStudyMode('pmu')" id="sm-pmu">PMU Event</button>
+  <div class="sb-sep"></div>
+  <span id="study-desc" style="font-size:9px;color:var(--muted);font-style:italic">General purpose analysis — all settings manual</span>
+</div>
+
+<!-- ── Settings bar ── -->
+<div id="settings-bar">
+  <div class="setting-group">
+    <label>Algorithm</label>
+    <select id="algo-select" onchange="onAlgoChange()">
+      <option value="peak">Peak/Log Decrement</option>
+      <option value="prony">Classical Prony</option>
+      <option value="mp" selected>Matrix Pencil</option>
+      <option value="all">All Methods</option>
+    </select>
+  </div>
+  <div class="sep"></div>
+  <div class="setting-group">
+    <label>Signal Filter</label>
+    <select id="filter-select">
+      <option value="none">None</option>
+      <option value="lp1">LP 1 Hz</option>
+      <option value="lp2">LP 2 Hz</option>
+      <option value="lp5">LP 5 Hz</option>
+      <option value="bp01_1">BP 0.1–1 Hz</option>
+      <option value="bp01_5">BP 0.1–5 Hz</option>
+      <option value="hp01">HP 0.1 Hz</option>
+    </select>
+  </div>
+  <div class="setting-group">
+    <label>Detrend</label>
+    <select id="detrend-select">
+      <option value="mean">Mean Removal</option>
+      <option value="linear">Linear Detrend</option>
+      <option value="quadratic">Quadratic Detrend</option>
+      <option value="none">None</option>
+    </select>
+  </div>
+  <div class="setting-group">
+    <label>Smooth</label>
+    <input type="number" id="smooth-win" value="3" min="1" max="99">
+  </div>
+  <div class="sep"></div>
+  <div class="setting-group">
+    <label>Peaks</label>
+    <input type="number" id="num-peaks" value="6" min="1" max="16">
+  </div>
+  <div class="setting-group">
+    <label>Prominence</label>
+    <input type="number" id="prominence" value="0.005" step="0.001" min="0">
+  </div>
+  <div class="sep"></div>
+  <div id="col-select-row">
+    <label>Time:</label><select id="col-time"></select>
+    <label>Signal:</label><select id="col-signal"></select>
+    <button class="btn" style="padding:2px 7px;font-size:9px" onclick="calculate()">Apply</button>
+  </div>
+</div>
+
+<!-- ── Algorithm parameters panel ── -->
+<div id="algo-panel" class="visible">
+  <div class="slider-group">
+    <label>Modes</label>
+    <input type="range" id="sl-modes" min="1" max="20" value="6" oninput="onSlider(this,'val-modes')">
+    <span class="slider-val" id="val-modes">6</span>
+  </div>
+  <div class="slider-group">
+    <label>Window (samples)</label>
+    <input type="range" id="sl-window" min="10" max="2000" value="300" oninput="onSlider(this,'val-window')">
+    <span class="slider-val" id="val-window">300</span>
+  </div>
+  <div class="slider-group">
+    <label>Energy Thresh (%)</label>
+    <input type="range" id="sl-energy" min="1" max="20" value="1" oninput="onSlider(this,'val-energy')">
+    <span class="slider-val" id="val-energy">1</span>
+  </div>
+  <div class="slider-group">
+    <label>SVD Rank (%)</label>
+    <input type="range" id="sl-svdrank" min="10" max="100" value="80" oninput="onSlider(this,'val-svdrank')">
+    <span class="slider-val" id="val-svdrank">80</span>
+  </div>
+  <div class="setting-group">
+    <label>Freq Min (Hz)</label>
+    <input type="number" id="freq-min" value="0.10" step="0.01" min="0">
+  </div>
+  <div class="setting-group">
+    <label>Freq Max (Hz)</label>
+    <input type="number" id="freq-max" value="5.00" step="0.01" min="0">
+  </div>
+</div>
+
+<!-- ── Main layout ── -->
+<div id="main">
+  <div id="input-pane">
+    <div class="pane-header">
+      <div class="dot"></div>INPUT DATA
+      <div class="actions">
+        <button class="btn" style="padding:2px 6px;font-size:9px" onclick="clearInput()">Clear</button>
+        <button class="btn" style="padding:2px 6px;font-size:9px" onclick="loadSample()">Sample</button>
+        <button class="btn" style="padding:2px 6px;font-size:9px" onclick="loadSampleMultiMode()">Multi-Mode</button>
+      </div>
+    </div>
+    <textarea id="input-box" placeholder="Paste time(s) and signal data&#10;0.000   500.000&#10;0.020   502.345&#10;...&#10;&#10;Supports CSV, space, tab delimiters&#10;Multi-column files auto-detected"></textarea>
+  </div>
+
+  <div id="output-pane">
+    <div class="pane-header">
+      <div class="dot" style="background:var(--warn)"></div>RESULTS &amp; LOG
+    </div>
+    <div id="output-box">Modal Analysis Platform v2.0
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Methods: Matrix Pencil (MPM) · Classical Prony · Peak Envelope
+Signal conditioning: Detrending · Filtering · Hilbert envelope
+
+Load data and press ▶ Calculate (or Enter) to begin.
+Select a Study Mode to auto-configure for your analysis type.
+
+Features:
+ • Matrix Pencil: robust SVD-based modal estimation
+ • Prony: classical ARMA decomposition with stability checking
+ • Hilbert envelope: instantaneous amplitude and phase
+ • Auto window detection: STA/LTA + energy thresholding
+ • Spectrogram: STFT time-frequency analysis
+ • Stabilization diagram: mode order selection
+ • Compliance metrics: AEMO/NEM/IEEE criteria
+ • All-methods comparison table
+</div>
+  </div>
+
+  <!-- right: tabbed chart pane -->
+  <div id="chart-pane">
+    <div class="tab-bar">
+      <div class="tab active" onclick="switchTab('signal')">Signal &amp; Fit</div>
+      <div class="tab" onclick="switchTab('psd')">PSD / Spectrum</div>
+      <div class="tab" onclick="switchTab('spectrogram')">Spectrogram</div>
+      <div class="tab" onclick="switchTab('stabilization')">Stabilization</div>
+      <div class="tab" onclick="switchTab('metrics')">Metrics</div>
+      <div class="tab" onclick="switchTab('compare')">Method Compare</div>
+    </div>
+
+    <!-- Tab 1: Signal & Fit -->
+    <div id="tab-signal" class="tab-panel active">
+      <div id="chart-toolbar">
+        <span class="tb-label">View</span>
+        <button class="tb-btn active" id="tb-pan" onclick="setChartMode('pan')">✋ Pan</button>
+        <button class="tb-btn" id="tb-zoom" onclick="setChartMode('zoom')">🔍 Zoom</button>
+        <button class="tb-btn" id="tb-reset" onclick="resetZoom()">⌂ Reset</button>
+        <div class="tb-sep"></div>
+        <span class="tb-label">Window</span>
+        <button class="tb-btn" id="tb-window" onclick="toggleWindowMode()">◧ Set Window</button>
+        <button class="tb-btn" onclick="clearWindowSelection()">✕ Clear</button>
+        <button class="tb-btn" id="tb-autowin" onclick="autoDetectWindow()">⚡ Auto-Detect</button>
+        <div class="tb-sep"></div>
+        <span style="font-size:9px;color:var(--muted)">Scroll=Y zoom · Shift+scroll=X · Drag=pan</span>
+      </div>
+      <div id="prony-window-strip">
+        Window: <span id="pw-t0">—</span>s → <span id="pw-t1">—</span>s &nbsp;|&nbsp;
+        Samples: <span id="pw-n">—</span> &nbsp;|&nbsp;
+        Duration: <span id="pw-dur">—</span>s
+        <span class="pw-hint">&nbsp;Drag blue handles or use Auto-Detect</span>
+      </div>
+      <div id="chart-overlay-wrap">
+        <div id="chart-container">
+          <canvas id="main-chart"></canvas>
+          <canvas id="handle-canvas"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 2: PSD -->
+    <div id="tab-psd" class="tab-panel">
+      <div id="psd-container"><canvas id="psd-chart"></canvas></div>
+      <div id="psd-info">
+        Dominant: <span id="psd-dom">—</span> &nbsp;|&nbsp;
+        SNR: <span id="psd-snr">—</span> dB &nbsp;|&nbsp;
+        Nyquist: <span id="psd-nyq">—</span> Hz &nbsp;|&nbsp;
+        Peaks: <span id="psd-peaks">—</span>
+      </div>
+    </div>
+
+    <!-- Tab 3: Spectrogram -->
+    <div id="tab-spectrogram" class="tab-panel">
+      <div id="spectrogram-container">
+        <canvas id="spectrogram-canvas"></canvas>
+      </div>
+      <div id="spectrogram-info">Spectrogram (STFT) — time vs frequency, colour = power (dB)</div>
+    </div>
+
+    <!-- Tab 4: Stabilization Diagram -->
+    <div id="tab-stabilization" class="tab-panel">
+      <div id="stab-container"><canvas id="stab-chart"></canvas></div>
+      <div id="stab-info">Stabilization diagram: run multiple model orders to identify stable physical modes (○ = stable, × = unstable)</div>
+    </div>
+
+    <!-- Tab 5: Metrics Dashboard -->
+    <div id="tab-metrics" class="tab-panel">
+      <div id="metrics-panel">
+        <div style="color:var(--muted);font-size:11px;padding:20px">
+          Run a calculation to populate the metrics dashboard.
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 6: Method Compare -->
+    <div id="tab-compare" class="tab-panel">
+      <div id="compare-panel">
+        <div style="color:var(--muted);font-size:11px;padding:20px">
+          Run with "All Methods" selected (or run individually) to see cross-method comparison.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Status bar ── -->
+<div id="statusbar">
+  <div>Samples: <span id="st-samples">—</span></div>
+  <div>Duration: <span id="st-duration">—</span></div>
+  <div>Fs: <span id="st-fs">—</span> Hz</div>
+  <div>Δt: <span id="st-dt">—</span></div>
+  <div>Mode: <span id="st-mode">—</span></div>
+  <div id="st-r2-wrap" style="display:none">R²: <span id="st-r2">—</span></div>
+  <div id="st-rmse-wrap" style="display:none">RMSE: <span id="st-rmse">—</span></div>
+  <div id="st-conf-wrap" style="display:none">Confidence: <span id="st-conf">—</span></div>
+  <div id="st-nonuniform" style="display:none" class="warn-text">⚠ Non-uniform sampling</div>
+  <div id="st-columns" style="display:none">Cols: <span id="st-col-count">—</span></div>
+  <div id="st-study" style="color:var(--purple)">Study: <span id="st-study-name">General</span></div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ════════════════════════════════════════════════════════════════════
+// CONSTANTS & COMPLIANCE THRESHOLDS (AEMO/NEM GPS)
+// ════════════════════════════════════════════════════════════════════
+const COMPLIANCE_MIN_DAMPING   = 0.10;   // 10% minimum per GPS
+const COMPLIANCE_MAX_HALVING_T = 5.00;   // 5 s maximum halving time
+const PRONY_FREQ_MIN_DEFAULT   = 0.10;   // Hz
+const PRONY_FREQ_MAX_DEFAULT   = 5.00;   // Hz
+const STEADY_STATE_TAIL        = 50;
+const VERSION                  = '2.0.0';
+
+// ════════════════════════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════════════════════════
+let cachedSignal   = null;
+let cachedPeakRes  = null;
+let cachedPronyRes = null;
+let cachedMPRes    = null;
+let allMethodsRes  = null;   // {peak, prony, mp} when running all methods
+let chart = null, psdChart = null, stabChart = null;
+let debounceId = null;
+let isDark = true;
+let lastExportData = null;
+let parsedColumns  = null;
+let manualWindowT0 = null, manualWindowT1 = null;
+let windowModeActive = false;
+let chartMode = 'pan';
+let hdl = { dragging:null, hoverHandle:null };
+let currentStudyMode = 'general';
+let stabResults = [];   // {order, modes[]}  for stabilization diagram
+
+// ════════════════════════════════════════════════════════════════════
+// COMPLEX NUMBER ARITHMETIC
+// ════════════════════════════════════════════════════════════════════
+const C = {
+  add:(a,b)=>({re:a.re+b.re,im:a.im+b.im}),
+  sub:(a,b)=>({re:a.re-b.re,im:a.im-b.im}),
+  mul:(a,b)=>({re:a.re*b.re-a.im*b.im,im:a.re*b.im+a.im*b.re}),
+  div:(a,b)=>{const d=b.re*b.re+b.im*b.im;return{re:(a.re*b.re+a.im*b.im)/d,im:(a.im*b.re-a.re*b.im)/d}},
+  exp:(a)=>{const e=Math.exp(Math.max(-700,a.re));return{re:e*Math.cos(a.im),im:e*Math.sin(a.im)}},
+  log:(a)=>{const r=Math.sqrt(a.re*a.re+a.im*a.im);return{re:r>1e-300?Math.log(r):-690,im:Math.atan2(a.im,a.re)}},
+  abs:(a)=>Math.sqrt(a.re*a.re+a.im*a.im),
+  scale:(a,s)=>({re:a.re*s,im:a.im*s}),
+  conj:(a)=>({re:a.re,im:-a.im}),
+};
+
+// ════════════════════════════════════════════════════════════════════
+// STUDY MODE PRESETS
+// ════════════════════════════════════════════════════════════════════
+const STUDY_PRESETS = {
+  general:      { fmin:0.10, fmax:5.00, filter:'none',    detrend:'mean',     smooth:3,  modes:6,  window:300, desc:'General purpose analysis — all settings manual' },
+  interarea:    { fmin:0.10, fmax:1.00, filter:'bp01_1',  detrend:'linear',   smooth:5,  modes:4,  window:500, desc:'Inter-area oscillations (0.1–1 Hz) — BP filtered, linear detrend' },
+  localplant:   { fmin:1.00, fmax:5.00, filter:'bp01_5',  detrend:'mean',     smooth:3,  modes:6,  window:200, desc:'Local plant modes (1–5 Hz) — standard Prony/MPM' },
+  faultringdown:{ fmin:0.10, fmax:5.00, filter:'lp5',     detrend:'linear',   smooth:5,  modes:8,  window:400, desc:'Fault ringdown — LP filtered, auto window after transient' },
+  voltstep:     { fmin:0.50, fmax:5.00, filter:'lp5',     detrend:'mean',     smooth:3,  modes:4,  window:250, desc:'Voltage step response — damped oscillation after disturbance' },
+  pssvalidation:{ fmin:0.10, fmax:2.00, filter:'bp01_5',  detrend:'linear',   smooth:5,  modes:6,  window:400, desc:'PSS validation — compare ζ before/after PSS engagement' },
+  pmu:          { fmin:0.10, fmax:2.00, filter:'lp2',     detrend:'quadratic',smooth:7,  modes:5,  window:600, desc:'PMU oscillation event — LP denoised, quadratic detrend' },
+};
+
+function setStudyMode(mode) {
+  currentStudyMode = mode;
+  document.querySelectorAll('.study-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('sm-'+mode)?.classList.add('active');
+
+  const p = STUDY_PRESETS[mode];
+  document.getElementById('study-desc').textContent = p.desc;
+  document.getElementById('st-study-name').textContent = mode.charAt(0).toUpperCase()+mode.slice(1);
+  document.getElementById('freq-min').value   = p.fmin;
+  document.getElementById('freq-max').value   = p.fmax;
+  document.getElementById('filter-select').value  = p.filter;
+  document.getElementById('detrend-select').value = p.detrend;
+  document.getElementById('smooth-win').value = p.smooth;
+  document.getElementById('sl-modes').value   = p.modes;
+  document.getElementById('val-modes').textContent = p.modes;
+  document.getElementById('sl-window').value  = p.window;
+  document.getElementById('val-window').textContent = p.window;
+  showToast(`Study mode: ${p.desc.split(' — ')[0]}`);
+}
+
+// ════════════════════════════════════════════════════════════════════
+// UI HELPERS
+// ════════════════════════════════════════════════════════════════════
+function showToast(msg, isErr=false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.style.display='block';
+  t.className = isErr ? 'err' : '';
+  clearTimeout(showToast._id);
+  showToast._id = setTimeout(()=>t.style.display='none', 4000);
+}
+function writeOutput(txt) { document.getElementById('output-box').textContent = txt; }
+function appendOutput(txt) { document.getElementById('output-box').textContent += '\n' + txt; }
+function setStatus(samples, duration, dt, mode) {
+  document.getElementById('st-samples').textContent  = samples??'—';
+  document.getElementById('st-duration').textContent = duration!=null?duration.toFixed(3)+'s':'—';
+  document.getElementById('st-dt').textContent       = dt!=null?dt.toFixed(5)+'s':'—';
+  document.getElementById('st-fs').textContent       = dt>0?(1/dt).toFixed(2):'—';
+  document.getElementById('st-mode').textContent     = mode??'—';
+}
+function onSlider(el, valId) {
+  document.getElementById(valId).textContent = el.value;
+  debouncedRun();
+}
+function onAlgoChange() {
+  const a = document.getElementById('algo-select').value;
+  document.getElementById('algo-panel').classList.toggle('visible', a!=='peak');
+}
+function switchTab(name) {
+  const names=['signal','psd','spectrogram','stabilization','metrics','compare'];
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',names[i]===name));
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  if (name==='signal' && chart) { resizeChart(); chart.resize(); }
+  if (name==='psd' && psdChart) { resizePSD(); psdChart.resize(); }
+  if (name==='spectrogram' && cachedSignal) drawSpectrogram(cachedSignal);
+  if (name==='stabilization' && stabResults.length) drawStabilizationDiagram();
+}
+function clearInput() { document.getElementById('input-box').value=''; cachedSignal=null; }
+
+// ── Sample data generators ────────────────────────────────────────
+function loadSample() {
+  const lines=['# Sample: damped inter-area oscillation  f=0.42 Hz  ζ=0.12'];
+  const f=0.42,z=0.12,w=2*Math.PI*f,s=z*w,amp=80,off=500;
+  for(let i=0;i<=600;i++){
+    const t=(i*0.04).toFixed(3);
+    const v=(off+amp*Math.exp(-s*i*0.04)*Math.cos(w*i*0.04)+(Math.random()-0.5)*2.0).toFixed(4);
+    lines.push(t+'   '+v);
+  }
+  document.getElementById('input-box').value=lines.join('\n');
+}
+function loadSampleMultiMode() {
+  const lines=['# Multi-mode: 0.38 Hz ζ=0.12 + 1.8 Hz ζ=0.08 + noise'];
+  const f1=0.38,z1=0.12,w1=2*Math.PI*f1,s1=z1*w1;
+  const f2=1.80,z2=0.08,w2=2*Math.PI*f2,s2=z2*w2;
+  for(let i=0;i<=500;i++){
+    const t=(i*0.04).toFixed(3);
+    const v=(500
+      +60*Math.exp(-s1*i*0.04)*Math.cos(w1*i*0.04)
+      +20*Math.exp(-s2*i*0.04)*Math.cos(w2*i*0.04+0.3)
+      +(Math.random()-0.5)*2.0).toFixed(4);
+    lines.push(t+'   '+v);
+  }
+  document.getElementById('input-box').value=lines.join('\n');
+}
+
+// ════════════════════════════════════════════════════════════════════
+// MULTI-COLUMN CSV PARSING
+// ════════════════════════════════════════════════════════════════════
+function parseAllColumns(text) {
+  const lines=text.split('\n').filter(l=>l.trim()&&!l.trim().startsWith('#'));
+  let headers=null, rows=[];
+  for(const line of lines){
+    const tokens=line.trim().split(/[\s,\t]+/);
+    if(tokens.length<2) continue;
+    const nums=tokens.map(parseFloat);
+    if(nums.some(isNaN)){if(!headers)headers=tokens;continue;}
+    rows.push(nums);
+  }
+  if(!rows.length) throw new Error('No numeric data found.');
+  rows=rows.filter(r=>r.length>=2);
+  const nCols=rows[0].length;
+  const columns=Array.from({length:nCols},(_,ci)=>new Float64Array(rows.map(r=>r[ci]??NaN)));
+  if(!headers) headers=Array.from({length:nCols},(_,i)=>`Col${i+1}`);
+  return{headers,columns,nRows:rows.length};
+}
+function updateColumnSelectors(headers) {
+  const row=document.getElementById('col-select-row');
+  const sT=document.getElementById('col-time'),sS=document.getElementById('col-signal');
+  sT.innerHTML=sS.innerHTML='';
+  headers.forEach((h,i)=>{sT.add(new Option(h,i));sS.add(new Option(h,i));});
+  sT.value=0; sS.value=Math.min(1,headers.length-1);
+  row.classList.toggle('visible',headers.length>2);
+  document.getElementById('st-columns').style.display='';
+  document.getElementById('st-col-count').textContent=headers.length;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// SIGNAL CONDITIONING
+// ════════════════════════════════════════════════════════════════════
+
+/** Savitzky-Golay FIR smoothing (2nd-order, configurable half-window) */
+function savgolFilter(y, w) {
+  if(w<3) return new Float64Array(y);
+  if(w%2===0) w++;
+  const n=y.length,hw=(w-1)/2,out=new Float64Array(n);
+  const weights=[];
+  for(let i=-hw;i<=hw;i++){
+    const m=hw,num=3*m*m+3*m-1-5*i*i,den=(2*m-1)*(2*m+1)*(2*m+3)/3;
+    weights.push(num/den);
+  }
+  for(let j=0;j<n;j++){
+    let s=0;
+    for(let k=0;k<w;k++){
+      let idx=j-hw+k;
+      if(idx<0) idx=-idx;
+      if(idx>=n) idx=2*(n-1)-idx;
+      idx=Math.max(0,Math.min(n-1,idx));
+      s+=weights[k]*y[idx];
+    }
+    out[j]=s;
+  }
+  return out;
+}
+
+/** Polynomial detrending (degree 0=mean, 1=linear, 2=quadratic) */
+function polyDetrend(y, t, degree) {
+  const n=y.length;
+  if(degree===0){
+    let m=0; for(const v of y) m+=v; m/=n;
+    return{detrended:y.map(v=>v-m),trend:new Float64Array(n).fill(m),offset:m};
+  }
+  // Build Vandermonde matrix
+  const nt=(t[t.length-1]-t[0])||1;
+  const tn=Array.from(t,v=>(v-t[0])/nt);  // normalised 0..1
+  const d=degree+1;
+  const A=tn.map(ti=>Array.from({length:d},(_,j)=>Math.pow(ti,j)));
+  const coef=leastSquaresReal(A,Array.from(y));
+  const trend=new Float64Array(n);
+  for(let i=0;i<n;i++) for(let j=0;j<d;j++) trend[i]+=coef[j]*Math.pow(tn[i],j);
+  const detrended=y.map((v,i)=>v-trend[i]);
+  return{detrended,trend,offset:trend[0]};
+}
+
+/**
+ * Simple IIR Butterworth-style filter implemented as cascaded biquad sections.
+ * We use pre-computed coefficients for common cutoffs relative to sample rate.
+ * For a browser tool this is practical and robust (no singularity issues).
+ */
+function biquadFilter(y, b0,b1,b2,a1,a2) {
+  const n=y.length,out=new Float64Array(n);
+  let x1=0,x2=0,y1=0,y2=0;
+  for(let i=0;i<n;i++){
+    const x=y[i];
+    const o=b0*x+b1*x1+b2*x2-a1*y1-a2*y2;
+    x2=x1;x1=x;y2=y1;y1=o;out[i]=o;
+  }
+  return out;
+}
+function biquadFilterForward(y,b0,b1,b2,a1,a2){return biquadFilter(y,b0,b1,b2,a1,a2);}
+function biquadFilterReverse(y,b0,b1,b2,a1,a2){
+  return biquadFilter([...y].reverse(),b0,b1,b2,a1,a2).reverse();
+}
+/** Zero-phase (forward-backward) filtering */
+function applyZeroPhaseFilter(y, b0,b1,b2,a1,a2) {
+  const fwd=biquadFilterForward(new Float64Array(y),b0,b1,b2,a1,a2);
+  return biquadFilterReverse(Array.from(fwd),b0,b1,b2,a1,a2);
+}
+
+/**
+ * Compute 2nd-order Butterworth LP biquad coefficients
+ * wc = cutoff in normalised radians (wc = 2π*fc/fs, must be < π)
+ */
+function butterworthLPCoef(wc) {
+  const K=Math.tan(wc/2);
+  const K2=K*K, sq2=Math.SQRT2;
+  const norm=1+sq2*K+K2;
+  return{b0:K2/norm,b1:2*K2/norm,b2:K2/norm,a1:2*(K2-1)/norm,a2:(1-sq2*K+K2)/norm};
+}
+/** HP is spectral inversion of LP */
+function butterworthHPCoef(wc) {
+  const K=Math.tan(wc/2);
+  const K2=K*K,sq2=Math.SQRT2;
+  const norm=1+sq2*K+K2;
+  return{b0:1/norm,b1:-2/norm,b2:1/norm,a1:2*(K2-1)/norm,a2:(1-sq2*K+K2)/norm};
+}
+
+function applyFilter(y, filterType, dt) {
+  const fs=1/dt;
+  const PI2=2*Math.PI;
+  let c;
+  if(filterType==='none') return new Float64Array(y);
+  if(filterType==='lp1'){
+    c=butterworthLPCoef(PI2*1.0/fs);
+    return new Float64Array(applyZeroPhaseFilter(y,c.b0,c.b1,c.b2,c.a1,c.a2));
+  }
+  if(filterType==='lp2'){
+    c=butterworthLPCoef(PI2*2.0/fs);
+    return new Float64Array(applyZeroPhaseFilter(y,c.b0,c.b1,c.b2,c.a1,c.a2));
+  }
+  if(filterType==='lp5'){
+    c=butterworthLPCoef(Math.min(PI2*5.0/fs, Math.PI*0.95));
+    return new Float64Array(applyZeroPhaseFilter(y,c.b0,c.b1,c.b2,c.a1,c.a2));
+  }
+  if(filterType==='hp01'){
+    c=butterworthHPCoef(PI2*0.1/fs);
+    return new Float64Array(applyZeroPhaseFilter(y,c.b0,c.b1,c.b2,c.a1,c.a2));
+  }
+  if(filterType==='bp01_1'){
+    // BP = LP(1Hz) cascaded with HP(0.1Hz)
+    const clp=butterworthLPCoef(PI2*1.0/fs);
+    const chp=butterworthHPCoef(PI2*0.1/fs);
+    const lp=applyZeroPhaseFilter(y,clp.b0,clp.b1,clp.b2,clp.a1,clp.a2);
+    return new Float64Array(applyZeroPhaseFilter(lp,chp.b0,chp.b1,chp.b2,chp.a1,chp.a2));
+  }
+  if(filterType==='bp01_5'){
+    const fc=Math.min(5.0, fs/2*0.95);
+    const clp=butterworthLPCoef(Math.min(PI2*fc/fs, Math.PI*0.95));
+    const chp=butterworthHPCoef(PI2*0.1/fs);
+    const lp=applyZeroPhaseFilter(y,clp.b0,clp.b1,clp.b2,clp.a1,clp.a2);
+    return new Float64Array(applyZeroPhaseFilter(lp,chp.b0,chp.b1,chp.b2,chp.a1,chp.a2));
+  }
+  return new Float64Array(y);
+}
+
+function checkUniformSampling(time) {
+  if(time.length<3) return{uniform:true,dt:time[1]-time[0]};
+  const dts=[];
+  for(let i=1;i<time.length;i++) dts.push(time[i]-time[i-1]);
+  const dtMean=dts.reduce((a,b)=>a+b)/dts.length;
+  const dtMax=Math.max(...dts),dtMin=Math.min(...dts);
+  return{uniform:(dtMax-dtMin)/dtMean<0.01,dt:dtMean};
+}
+
+function preprocess(time, values) {
+  const dt=(time.length>1)?time[1]-time[0]:0.02;
+  const filterType=document.getElementById('filter-select').value;
+  const detrendType=document.getElementById('detrend-select').value;
+  let smoothWin=parseInt(document.getElementById('smooth-win').value)||3;
+  if(smoothWin%2===0) smoothWin++;
+
+  // 1. Filter
+  const filtered=applyFilter(Array.from(values), filterType, dt);
+
+  // 2. Detrend
+  const degMap={none:-1,mean:0,linear:1,quadratic:2};
+  const deg=degMap[detrendType]??0;
+  let detrended,trend,offset=0;
+  if(deg<0){detrended=new Float64Array(filtered);trend=new Float64Array(time.length);}
+  else{const r=polyDetrend(Array.from(filtered),Array.from(time),deg);detrended=new Float64Array(r.detrended);trend=r.trend;offset=r.offset;}
+
+  // 3. Smooth
+  const maxW=values.length%2!==0?values.length:values.length-1;
+  const w=Math.min(smoothWin,maxW);
+  const smoothed=savgolFilter(detrended,w);
+
+  return{time,raw:values,filtered,detrended,smoothed,trend,steadyStateOffset:offset,dt};
+}
+
+// ════════════════════════════════════════════════════════════════════
+// HILBERT TRANSFORM ENVELOPE
+// ════════════════════════════════════════════════════════════════════
+/**
+ * Computes the analytic signal envelope via Hilbert transform.
+ * 1. FFT the signal
+ * 2. Zero negative frequencies, double positive
+ * 3. IFFT → analytic signal
+ * 4. Magnitude → instantaneous envelope
+ */
+function hilbertEnvelope(signal) {
+  const n=signal.length;
+  let N=1; while(N<n) N<<=1;   // next power of 2
+  const re=new Float64Array(N), im=new Float64Array(N);
+  for(let i=0;i<n;i++) re[i]=signal[i];
+  fft(re,im);
+  // Analytic signal: zero negative frequencies, double positive
+  const re2=new Float64Array(N), im2=new Float64Array(N);
+  re2[0]=re[0]; im2[0]=im[0];
+  if(N%2===0){re2[N/2]=re[N/2];im2[N/2]=im[N/2];}
+  for(let k=1;k<N/2;k++){re2[k]=2*re[k];im2[k]=2*im[k];}
+  // IFFT
+  ifft(re2,im2);
+  // Envelope = abs(analytic signal)
+  const env=new Float64Array(n);
+  for(let i=0;i<n;i++) env[i]=Math.sqrt(re2[i]*re2[i]+im2[i]*im2[i]);
+  return env;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// FFT (radix-2 Cooley-Tukey) + IFFT
+// ════════════════════════════════════════════════════════════════════
+function fft(re, im) {
+  const n=re.length;
+  let j=0;
+  for(let i=1;i<n;i++){
+    let bit=n>>1;
+    for(;j&bit;bit>>=1) j^=bit;
+    j^=bit;
+    if(i<j){[re[i],re[j]]=[re[j],re[i]];[im[i],im[j]]=[im[j],im[i]];}
+  }
+  for(let len=2;len<=n;len<<=1){
+    const ang=-2*Math.PI/len,wRe=Math.cos(ang),wIm=Math.sin(ang);
+    for(let i=0;i<n;i+=len){
+      let cRe=1,cIm=0;
+      for(let k=0;k<len/2;k++){
+        const uRe=re[i+k],uIm=im[i+k];
+        const vRe=re[i+k+len/2]*cRe-im[i+k+len/2]*cIm;
+        const vIm=re[i+k+len/2]*cIm+im[i+k+len/2]*cRe;
+        re[i+k]=uRe+vRe;im[i+k]=uIm+vIm;
+        re[i+k+len/2]=uRe-vRe;im[i+k+len/2]=uIm-vIm;
+        const nRe=cRe*wRe-cIm*wIm;cIm=cRe*wIm+cIm*wRe;cRe=nRe;
+      }
+    }
+  }
+}
+function ifft(re, im) {
+  // Conjugate, FFT, conjugate, divide by N
+  for(let i=0;i<im.length;i++) im[i]=-im[i];
+  fft(re,im);
+  const n=re.length;
+  for(let i=0;i<n;i++){re[i]/=n;im[i]=-im[i]/n;}
+}
+
+// ════════════════════════════════════════════════════════════════════
+// AUTOMATIC WINDOW DETECTION (STA/LTA + energy)
+// ════════════════════════════════════════════════════════════════════
+function autoDetectWindow(signal) {
+  if(!cachedSignal) return;
+  const {detrended:det, time} = signal||cachedSignal;
+  const n=det.length;
+
+  // STA/LTA energy detection
+  const staLen=Math.max(5,Math.round(n*0.02));
+  const ltaLen=Math.max(20,Math.round(n*0.10));
+  const ratio=new Float64Array(n);
+  let sta=0,lta=0;
+  // Initialise LTA
+  for(let i=0;i<ltaLen&&i<n;i++) lta+=det[i]*det[i];
+  lta/=ltaLen;
+  for(let i=0;i<n;i++){
+    if(i>=staLen){
+      sta+=det[i]*det[i];
+      if(i>staLen) sta-=det[i-staLen]*det[i-staLen];
+      const staMean=sta/staLen;
+      ratio[i]=lta>1e-12?staMean/lta:0;
+    }
+  }
+
+  // Disturbance = first point where STA/LTA > 3
+  let distStart=0;
+  for(let i=ltaLen;i<n;i++) if(ratio[i]>3.0){distStart=Math.max(0,i-staLen);break;}
+
+  // End of oscillation: where Hilbert envelope drops below 10% of peak
+  const env=hilbertEnvelope(Array.from(det).slice(distStart));
+  let peakEnv=0; for(const v of env) if(v>peakEnv) peakEnv=v;
+  const thresh=0.05*peakEnv;
+  let endIdx=env.length-1;
+  for(let i=env.length-1;i>0;i--) if(env[i]>thresh){endIdx=i;break;}
+
+  manualWindowT0=time[distStart];
+  manualWindowT1=time[Math.min(distStart+endIdx,n-1)];
+  syncHandleCanvas();
+  updateWindowStrip();
+  showToast(`Auto window detected: ${manualWindowT0.toFixed(3)}s → ${manualWindowT1.toFixed(3)}s`);
+  if(cachedSignal) debouncedRun();
+}
+// expose for toolbar button
+function autoDetectWindowBtn(){autoDetectWindow(null);}
+// alias
+function autoDetectWindow(sig){
+  const s=sig||cachedSignal;
+  if(!s){showToast('Load data first.',true);return;}
+  const{detrended:det,time}=s;
+  const n=det.length;
+  const staLen=Math.max(5,Math.round(n*0.02));
+  const ltaLen=Math.max(20,Math.round(n*0.10));
+  let sta=0,lta=0;
+  for(let i=0;i<ltaLen&&i<n;i++) lta+=det[i]*det[i];
+  lta/=ltaLen;
+  let distStart=Math.round(n*0.02);
+  const ratio=new Float64Array(n);
+  for(let i=staLen;i<n;i++){
+    let s2=0;for(let k=0;k<staLen;k++) s2+=det[i-k]*det[i-k];
+    ratio[i]=lta>1e-12?(s2/staLen)/lta:0;
+  }
+  for(let i=ltaLen;i<n;i++) if(ratio[i]>3){distStart=Math.max(0,i-staLen);break;}
+  const env=hilbertEnvelope(Array.from(det).slice(distStart));
+  let peakEnv=0;for(const v of env) if(v>peakEnv) peakEnv=v;
+  const thresh=0.05*peakEnv;
+  let endIdx=env.length-1;
+  for(let i=env.length-1;i>0;i--) if(env[i]>thresh){endIdx=i;break;}
+  manualWindowT0=time[distStart];
+  manualWindowT1=time[Math.min(distStart+endIdx,n-1)];
+  syncHandleCanvas();
+  updateWindowStrip();
+  showToast(`Auto window: ${manualWindowT0.toFixed(3)}s → ${manualWindowT1.toFixed(3)}s`);
+  if(cachedSignal) debouncedRun();
+}
+
+// ════════════════════════════════════════════════════════════════════
+// PEAK / LOG DECREMENT METHOD
+// ════════════════════════════════════════════════════════════════════
+function findPeaks(arr, prominence) {
+  const peaks=[];
+  for(let i=1;i<arr.length-1;i++) if(arr[i]>arr[i-1]&&arr[i]>arr[i+1]) peaks.push(i);
+  if(prominence<=0) return peaks;
+  return peaks.filter(p=>{
+    let lMin=arr[p],rMin=arr[p];
+    for(let i=p-1;i>=0;i--){if(arr[i]<lMin)lMin=arr[i];if(arr[i]>arr[p])break;}
+    for(let i=p+1;i<arr.length;i++){if(arr[i]<rMin)rMin=arr[i];if(arr[i]>arr[p])break;}
+    return(arr[p]-Math.max(lMin,rMin))>=prominence;
+  });
+}
+function fitExponentialEnvelope(peakTimes, peakValues) {
+  const pts=peakTimes.map((t,i)=>({t,v:peakValues[i]})).filter(p=>p.v>0);
+  if(pts.length<2) return null;
+  const lny=pts.map(p=>Math.log(p.v));
+  const t=pts.map(p=>p.t);
+  const n=pts.length;
+  const sT=t.reduce((a,b)=>a+b),sY=lny.reduce((a,b)=>a+b);
+  const sTY=t.reduce((a,v,i)=>a+v*lny[i],0),sT2=t.reduce((a,v)=>a+v*v,0);
+  const slope=(n*sTY-sT*sY)/(n*sT2-sT*sT);
+  const A=Math.exp((sY-slope*sT)/n),sigma=-slope;
+  return{A,sigma};
+}
+function runPeakEnvelope(signalData, numPeaks, prominence) {
+  const{smoothed,time,steadyStateOffset:off}=signalData;
+  let peakIdx=findPeaks(smoothed,prominence).filter(i=>smoothed[i]>0);
+  if(peakIdx.length<2) throw new Error(`Only ${peakIdx.length} positive peak(s); need ≥ 2. Try reducing Prominence.`);
+  peakIdx=peakIdx.slice(0,Math.max(1,Math.min(16,numPeaks)));
+  const peakTimes=peakIdx.map(i=>time[i]);
+  const peakValues=peakIdx.map(i=>smoothed[i]);
+  const envelope=fitExponentialEnvelope(peakTimes,peakValues);
+  const pairs=[],zetaList=[],sigmaList=[],halfList=[],freqList=[];
+  for(let i=0;i<peakValues.length-1;i++){
+    const y1=peakValues[i],y2=peakValues[i+1],t1=peakTimes[i],t2=peakTimes[i+1];
+    if(y1<=0||y2<=0) continue;
+    const delta=Math.log(y1/y2),dt=t2-t1,sigma=delta/dt;
+    const zeta=delta/Math.sqrt(4*Math.PI**2+delta**2);
+    const halfT=sigma>0?Math.LN2/sigma:Infinity,freqHz=1/dt;
+    pairs.push({pairIndex:i+1,time1:t1,peak1:y1,time2:t2,peak2:y2,
+      logDecrement:delta,sigma,dampingRatio:zeta,frequencyHz:freqHz,halvingTime:halfT});
+    zetaList.push(zeta);sigmaList.push(sigma);halfList.push(halfT);freqList.push(freqHz);
+  }
+  if(!pairs.length) throw new Error('No valid pairs. Check offset/detrend settings.');
+  const avg=a=>a.reduce((x,y)=>x+y)/a.length;
+  const std=a=>{const m=avg(a);return Math.sqrt(a.reduce((x,y)=>x+(y-m)**2)/a.length);};
+  return{pairs,peakTimes,peakValues,envelope,
+    avgDampingRatio:avg(zetaList),stdDampingRatio:std(zetaList),
+    avgSigma:avg(sigmaList),avgHalvingTime:avg(halfList),
+    avgFrequency:avg(freqList),stdFrequency:std(freqList)};
+}
+
+// ════════════════════════════════════════════════════════════════════
+// SVD (Golub-Reinsch, JS implementation suitable for moderate sizes)
+// ════════════════════════════════════════════════════════════════════
+/**
+ * Computes the thin SVD: A = U * diag(S) * Vt
+ * A is an m×n matrix (m >= n expected for LS problems).
+ * Returns {U, S, Vt} — U is m×k, S is k-vector, Vt is k×n, k=min(m,n).
+ * Uses the one-sided Jacobi SVD algorithm — numerically reliable for small-to-medium matrices.
+ */
+function svd(A) {
+  // Work on columns of A stored as Float64Array[]
+  const m=A.length, n=A[0].length;
+  // Initialise V as identity, copy A to work matrix B (columns)
+  const B=A.map(row=>Float64Array.from(row));   // m x n
+  const Vt=Array.from({length:n},(_,i)=>{ const r=new Float64Array(n);r[i]=1;return r; });
+  const maxIter=200*n*n;
+  for(let iter=0;iter<maxIter;iter++){
+    let changed=false;
+    for(let p=0;p<n-1;p++){
+      for(let q=p+1;q<n;q++){
+        // Compute [α β; β γ] = Bᵀ[p,q] block
+        let alpha=0,beta=0,gamma=0;
+        for(let i=0;i<m;i++){alpha+=B[i][p]*B[i][p];beta+=B[i][p]*B[i][q];gamma+=B[i][q]*B[i][q];}
+        if(Math.abs(beta)<1e-15*Math.sqrt(alpha*gamma)) continue;
+        changed=true;
+        const zeta=(gamma-alpha)/(2*beta);
+        const t=zeta>=0?1/(zeta+Math.sqrt(1+zeta*zeta)):1/(zeta-Math.sqrt(1+zeta*zeta));
+        const c=1/Math.sqrt(1+t*t),s=t*c;
+        // Rotate B columns p and q
+        for(let i=0;i<m;i++){const bp=B[i][p],bq=B[i][q];B[i][p]=c*bp+s*bq;B[i][q]=-s*bp+c*bq;}
+        // Rotate Vt rows p and q (actually Vt columns)
+        for(let i=0;i<n;i++){const vp=Vt[p][i],vq=Vt[q][i];Vt[p][i]=c*vp+s*vq;Vt[q][i]=-s*vp+c*vq;}
+      }
+    }
+    if(!changed) break;
+  }
+  // Compute singular values = column norms of B, U = B / S
+  const S=new Float64Array(n);
+  const U=Array.from({length:m},()=>new Float64Array(n));
+  for(let j=0;j<n;j++){
+    let norm=0;for(let i=0;i<m;i++) norm+=B[i][j]*B[i][j];norm=Math.sqrt(norm);
+    S[j]=norm;
+    if(norm>1e-14) for(let i=0;i<m;i++) U[i][j]=B[i][j]/norm;
+  }
+  // Sort by descending singular value
+  const idx=Array.from({length:n},(_,i)=>i).sort((a,b)=>S[b]-S[a]);
+  const Ss=new Float64Array(idx.map(i=>S[i]));
+  const Us=U.map(row=>new Float64Array(idx.map(i=>row[i])));
+  const Vs=idx.map(i=>Vt[i]);  // rows of Vt reordered
+  return{U:Us,S:Ss,Vt:Vs};
+}
+
+// ════════════════════════════════════════════════════════════════════
+// LINEAR ALGEBRA HELPERS
+// ════════════════════════════════════════════════════════════════════
+function leastSquaresReal(A, b) {
+  const m=A[0].length,n=A.length;
+  const AtA=Array.from({length:m},()=>new Float64Array(m));
+  const Atb=new Float64Array(m);
+  for(let i=0;i<m;i++) for(let j=0;j<m;j++) for(let k=0;k<n;k++) AtA[i][j]+=A[k][i]*A[k][j];
+  for(let i=0;i<m;i++) for(let k=0;k<n;k++) Atb[i]+=A[k][i]*b[k];
+  const aug=AtA.map((row,i)=>[...row,Atb[i]]);
+  for(let col=0;col<m;col++){
+    let maxR=col;
+    for(let r=col+1;r<m;r++) if(Math.abs(aug[r][col])>Math.abs(aug[maxR][col])) maxR=r;
+    [aug[col],aug[maxR]]=[aug[maxR],aug[col]];
+    const piv=aug[col][col];if(Math.abs(piv)<1e-14) continue;
+    for(let r=col+1;r<m;r++){const f=aug[r][col]/piv;for(let c=col;c<=m;c++) aug[r][c]-=f*aug[col][c];}
+  }
+  const x=new Float64Array(m);
+  for(let i=m-1;i>=0;i--){x[i]=aug[i][m];for(let j=i+1;j<m;j++) x[i]-=aug[i][j]*x[j];x[i]/=aug[i][i]||1e-15;}
+  return x;
+}
+
+function leastSquaresComplex(V, signal) {
+  const n=signal.length,m=V[0].length;
+  const A=[],b=[];
+  for(let i=0;i<n;i++){const row=[];for(let j=0;j<m;j++) row.push(V[i][j].re);for(let j=0;j<m;j++) row.push(-V[i][j].im);A.push(row);b.push(signal[i]);}
+  for(let i=0;i<n;i++){const row=[];for(let j=0;j<m;j++) row.push(V[i][j].im);for(let j=0;j<m;j++) row.push(V[i][j].re);A.push(row);b.push(0);}
+  const x=leastSquaresReal(A,b);
+  return Array.from({length:m},(_,j)=>({re:x[j],im:x[j+m]}));
+}
+
+// ════════════════════════════════════════════════════════════════════
+// MATRIX PENCIL METHOD (MPM) — SVD-based robust modal estimation
+// ════════════════════════════════════════════════════════════════════
+/**
+ * Matrix Pencil Method (Hua & Sarkar, 1990).
+ *
+ * Algorithm:
+ *  1. Form Hankel data matrix Y from the signal
+ *  2. SVD rank reduction: keep k singular values (k = pencil parameter L)
+ *  3. Form two shifted sub-matrices Y1, Y2 from the filtered row space
+ *  4. Generalised eigenvalue problem Y1† Y2 gives z-domain poles
+ *  5. Convert z-poles to s-domain (σ + jω)
+ *  6. Solve amplitude via Vandermonde least-squares
+ *
+ * This is significantly more robust than classical Prony for noisy data.
+ */
+function matrixPencil(timeWindow, sigWindow, numModes, svdRankPct) {
+  const n=sigWindow.length;
+  const L=Math.min(Math.floor(n/2), Math.max(numModes+2, Math.floor(n*0.4)));
+  const M=n-L;   // number of rows in Hankel matrix
+  if(M<numModes+1) throw new Error(`Signal too short for ${numModes} modes (need ${numModes*3+3} samples).`);
+
+  // 1. Build Hankel data matrix Y (M × (L+1))
+  const Y=Array.from({length:M},(_,i)=>new Float64Array(L+1).map((_2,j)=>sigWindow[i+j]));
+
+  // 2. SVD of Y
+  const {U, S, Vt}=svd(Y);
+
+  // 3. Determine rank by SVD energy criterion
+  let totalEnergy=0; for(const s of S) totalEnergy+=s*s;
+  const threshold=svdRankPct/100;
+  let k=0,cumEnergy=0;
+  for(let i=0;i<S.length;i++){
+    cumEnergy+=S[i]*S[i]/totalEnergy;
+    k=i+1;
+    if(cumEnergy>=threshold) break;
+  }
+  k=Math.max(numModes, Math.min(k, Math.floor(L/2)));
+
+  // 4. Filtered row space: Vk = first k rows of Vt (each row = n-vector)
+  // V1 = Vk with last column removed, V2 = Vk with first column removed
+  const Vk=Vt.slice(0,k);  // k × (L+1)
+  // V1 = k columns 0..L-1, V2 = columns 1..L (transposed for LS)
+  // We need eigenvalues of V1† V2  (pinv(V1) @ V2)
+  // Form V1 (k × L) and V2 (k × L)
+  const V1=Vk.map(row=>row.slice(0,L));
+  const V2=Vk.map(row=>row.slice(1,L+1));
+
+  // 5. Compute pseudo-inverse of V1 via SVD, then multiply by V2
+  // pinv(V1) @ V2 has eigenvalues = z-domain poles
+  // For k << L this is a small problem
+  // pinv(V1): V1 is k×L with k<<L → use V1_svd
+  const {U:U1, S:S1, Vt:Vt1}=svd(V1.map(row=>Array.from(row)));
+  // pinv(V1) = V1_Vt.T @ diag(1/S1) @ U1.T
+  // Then A = pinv(V1) @ V2
+  // Dimensions: (L×k) @ (k×L) = L×L
+  // Build small k×k matrix Z = U1.T @ V2 @ Vt1.T @ diag(1/S1)
+  // We want eigenvalues of this Z
+  // Equivalently: eigenvalues of Phi = (V1.T @ V1)^-1 @ V1.T @ V2
+  // Use SVD: Phi = Vt1.T @ diag(1/S1) @ U1.T @ V2 ... then eigenvalues via QR
+  // For simplicity, compute the k×k matrix directly
+  // A_small = diag(1/S1) @ U1.T @ V2 @ Vt1.T   →  k×k
+  // Then eigenvalues of this = z-domain poles
+
+  const k2=S1.length;
+  // Compute C = U1.T (k2×k) @ V2 (k×L)  → k2×L
+  const C=Array.from({length:k2},(_,i)=>new Float64Array(L).map((_2,j)=>{
+    let s=0;for(let r=0;r<k;r++) s+=U1[r][i]*V2[r][j];return s;
+  }));
+  // Compute D = C @ Vt1.T (L×k2) → k2×k2, then scale rows by 1/S1
+  const D=Array.from({length:k2},(_,i)=>new Float64Array(k2).map((_2,j)=>{
+    let s=0;for(let c=0;c<L;c++) s+=C[i][c]*Vt1[j][c];
+    return S1[i]>1e-12?s/S1[i]:0;
+  }));
+
+  // 6. Power-iteration eigenvalues of D (small k×k matrix)
+  // For robustness, use the QR algorithm
+  const zPoles=qrEigenvalues(D, k2);
+
+  // 7. Convert z-poles to s-domain and extract modes
+  const dt=timeWindow[1]-timeWindow[0];
+  const modes=[];
+  const processedFreqs=[];
+
+  for(const z of zPoles){
+    const absZ=C.abs(z);
+    if(absZ<1e-8||absZ>10) continue;  // degenerate or divergent
+    const s=C.scale(C.log(absZ<1e-12?{re:1e-12,im:0}:z), 1/dt);
+    const dampingRate=-s.re;
+    const angFreq=Math.abs(s.im);
+    const freqHz=angFreq/(2*Math.PI);
+    const fMin=parseFloat(document.getElementById('freq-min').value)||PRONY_FREQ_MIN_DEFAULT;
+    const fMax=parseFloat(document.getElementById('freq-max').value)||PRONY_FREQ_MAX_DEFAULT;
+    if(freqHz<fMin||freqHz>fMax) continue;
+    if(dampingRate<=0) continue;
+    // Avoid duplicates (conjugate pairs)
+    const isDup=processedFreqs.some(f=>Math.abs(f-freqHz)<0.01);
+    if(isDup) continue;
+    processedFreqs.push(freqHz);
+    const zeta=dampingRate/Math.sqrt(dampingRate**2+angFreq**2);
+    modes.push({frequencyHz:freqHz,dampingRate,dampingRatio:zeta,period:freqHz>0?1/freqHz:Infinity});
+  }
+
+  // 8. Amplitude estimation via Vandermonde LS on filtered poles
+  // Build z-poles corresponding to accepted modes
+  const acceptedPoles=modes.map(m=>{
+    const sigma=-m.dampingRate*dt;
+    const omega=2*Math.PI*m.frequencyHz*dt;
+    return[{re:Math.exp(sigma)*Math.cos(omega),im:Math.exp(sigma)*Math.sin(omega)},
+           {re:Math.exp(sigma)*Math.cos(-omega),im:Math.exp(sigma)*Math.sin(-omega)}];
+  }).flat();
+
+  if(!acceptedPoles.length) return{modes:[], fittedSignal:new Float64Array(timeWindow.length),
+    rSquared:0,rmse:0,svdRank:k,singularValues:Array.from(S)};
+
+  const V=Array.from({length:sigWindow.length},(_,i)=>
+    acceptedPoles.map(z=>{let val={re:1,im:0};for(let p=0;p<i;p++) val=C.mul(val,z);return val;})
+  );
+  const amps=leastSquaresComplex(V, Array.from(sigWindow));
+  const t0=timeWindow[0];
+  const fitted=new Float64Array(timeWindow.length);
+  for(let i=0;i<timeWindow.length;i++){
+    const tRel=timeWindow[i]-t0;let sum=0;
+    for(let p=0;p<acceptedPoles.length;p++){
+      const z=acceptedPoles[p],b=C.log(z),bScaled=C.scale(b,tRel/dt);
+      const ex=C.exp(bScaled);
+      sum+=amps[p].re*ex.re-amps[p].im*ex.im;
+    }
+    fitted[i]=sum;
+  }
+
+  // Amplitude per mode (pair of conjugates)
+  for(let i=0;i<modes.length;i++){
+    const p=i*2;
+    modes[i].amplitude=p<amps.length?2*C.abs(amps[p]):0;
+  }
+  modes.sort((a,b)=>b.amplitude-a.amplitude);
+
+  // Goodness of fit
+  let sigMean=0;for(const v of sigWindow) sigMean+=v;sigMean/=sigWindow.length;
+  let ssRes=0,ssTot=0;
+  for(let i=0;i<sigWindow.length;i++){ssRes+=(sigWindow[i]-fitted[i])**2;ssTot+=(sigWindow[i]-sigMean)**2;}
+  const r2=ssTot>0?Math.max(0,1-ssRes/ssTot):0;
+  const rmse=Math.sqrt(ssRes/sigWindow.length);
+
+  return{modes,fittedSignal:fitted,rSquared:r2,rmse,svdRank:k,singularValues:Array.from(S)};
+}
+
+/**
+ * QR algorithm for eigenvalues of a real matrix (shifted QR).
+ * Returns approximate complex eigenvalues.
+ */
+function qrEigenvalues(A, n) {
+  // Copy A
+  let H=A.map(row=>Float64Array.from(row));
+  // Reduce to upper Hessenberg
+  for(let p=1;p<n-1;p++){
+    let alpha=0;for(let i=p;i<n;i++) alpha+=H[i][p-1]*H[i][p-1];alpha=Math.sqrt(alpha);
+    if(alpha<1e-14) continue;
+    if(H[p][p-1]>0) alpha=-alpha;
+    const u=new Float64Array(n);
+    u[p]=H[p][p-1]-alpha;
+    for(let i=p+1;i<n;i++) u[i]=H[i][p-1];
+    let norm2=0;for(let i=p;i<n;i++) norm2+=u[i]*u[i];
+    if(norm2<1e-20) continue;
+    // H = H - 2/norm2 * u * uT * H
+    for(let j=p-1;j<n;j++){let d=0;for(let i=p;i<n;i++) d+=u[i]*H[i][j];d*=2/norm2;for(let i=p;i<n;i++) H[i][j]-=d*u[i];}
+    for(let i=0;i<n;i++){let d=0;for(let j=p;j<n;j++) d+=H[i][j]*u[j];d*=2/norm2;for(let j=p;j<n;j++) H[i][j]-=d*u[j];}
+  }
+
+  // Francis double-step QR iteration
+  const eigVals=[];
+  let size=n;
+  for(let iter=0;iter<30*n&&size>1;iter++){
+    // Wilkinson shift
+    const tr=H[size-2][size-2]+H[size-1][size-1];
+    const det=H[size-2][size-2]*H[size-1][size-1]-H[size-2][size-1]*H[size-1][size-2];
+    // Check for deflation
+    const subDiag=Math.abs(H[size-1][size-2]);
+    const scale=Math.abs(H[size-2][size-2])+Math.abs(H[size-1][size-1]);
+    if(subDiag<1e-10*(scale||1)){
+      // 2×2 block eigenvalues
+      const disc=tr*tr-4*det;
+      if(disc>=0){eigVals.push({re:(tr+Math.sqrt(disc))/2,im:0});eigVals.push({re:(tr-Math.sqrt(disc))/2,im:0});}
+      else{const re=tr/2,im=Math.sqrt(-disc)/2;eigVals.push({re,im});eigVals.push({re,im:-im});}
+      size-=2;
+      if(size<0) break;
+      continue;
+    }
+    // QR step with double shift (simplified single-step here)
+    const shift=H[size-1][size-1];
+    for(let i=0;i<size;i++) H[i][i]-=shift;
+    // One Givens rotation step
+    for(let j=0;j<size-1;j++){
+      const a=H[j][j],b=H[j+1][j];
+      const r=Math.sqrt(a*a+b*b);if(r<1e-14) continue;
+      const c=a/r,s=b/r;
+      for(let k=j;k<size;k++){const tmp=c*H[j][k]+s*H[j+1][k];H[j+1][k]=-s*H[j][k]+c*H[j+1][k];H[j][k]=tmp;}
+      for(let k=0;k<=Math.min(j+2,size-1);k++){const tmp=c*H[k][j]+s*H[k][j+1];H[k][j+1]=-s*H[k][j]+c*H[k][j+1];H[k][j]=tmp;}
+    }
+    for(let i=0;i<size;i++) H[i][i]+=shift;
+  }
+  // Remaining 1×1
+  if(size===1) eigVals.push({re:H[0][0],im:0});
+  return eigVals;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// CLASSICAL PRONY (improved with SVD pre-filtering)
+// ════════════════════════════════════════════════════════════════════
+function aberthRoots(monic, n) {
+  const roots=[];
+  for(let k=0;k<n;k++){const a=2*Math.PI*k/n+0.1;roots.push({re:Math.cos(a)*0.9,im:Math.sin(a)*0.9});}
+  function evalPoly(z){let v={re:monic[0],im:0};for(let i=1;i<=n;i++) v=C.add(C.mul(v,z),{re:monic[i]||0,im:0});return v;}
+  function evalDeriv(z){let v={re:monic[0]*n,im:0};for(let i=1;i<n;i++) v=C.add(C.mul(v,z),{re:monic[i]*(n-i),im:0});return v;}
+  for(let iter=0;iter<80;iter++){
+    for(let k=0;k<n;k++){
+      const fz=evalPoly(roots[k]),fp=evalDeriv(roots[k]);
+      if(C.abs(fz)<1e-14) continue;
+      let sum={re:0,im:0};
+      for(let j=0;j<n;j++) if(j!==k){const d=C.sub(roots[k],roots[j]);if(C.abs(d)<1e-15) continue;sum=C.add(sum,C.div({re:1,im:0},d));}
+      const denom=C.sub(C.div(fp,fz),sum);
+      if(C.abs(denom)<1e-15) continue;
+      roots[k]=C.sub(roots[k],C.div({re:1,im:0},denom));
+    }
+  }
+  return roots;
+}
+
+function pronyDecompose(timeWindow, sigWindow, numModes) {
+  const n=sigWindow.length,m=numModes;
+  if(n<=m) throw new Error(`Window (${n}) must exceed modes (${m}).`);
+  const H=[],tgt=[];
+  for(let i=0;i<n-m;i++){const row=[];for(let j=0;j<m;j++) row.push(sigWindow[i+(m-1-j)]);H.push(row);tgt.push(sigWindow[i+m]);}
+  const d=leastSquaresReal(H,tgt);
+  const charPoly=new Float64Array(m+1);charPoly[0]=1;
+  for(let i=0;i<m;i++) charPoly[i+1]=-d[i];
+  const roots=aberthRoots(Array.from(charPoly),m);
+  const dt=timeWindow[1]-timeWindow[0];
+  const exponents=roots.map(z=>{const absZ=C.abs(z);return C.scale(C.log(absZ>1e-12?z:{re:1e-12,im:0}),1/dt);});
+  const V=[];
+  for(let i=0;i<n;i++){V.push(roots.map(r=>{const sR=C.abs(r)>1e-12?r:{re:1e-12,im:0};let val={re:1,im:0};for(let k=0;k<i;k++) val=C.mul(val,sR);return val;}));}
+  const amplitudes=leastSquaresComplex(V,Array.from(sigWindow));
+  return{amplitudes,exponents};
+}
+
+function getWindowIndices(signalData, windowLength, energyFraction) {
+  const{time,detrended}=signalData;
+  if(manualWindowT0!==null&&manualWindowT1!==null){
+    const iS=timeToSampleIndex(time,manualWindowT0);
+    const iE=timeToSampleIndex(time,manualWindowT1);
+    return[iS,Math.max(iE,iS+3)];
+  }
+  let peak=0;for(const v of detrended) if(Math.abs(v)>peak) peak=Math.abs(v);
+  let iS=0;for(let i=0;i<detrended.length;i++) if(Math.abs(detrended[i])>=energyFraction*peak){iS=i;break;}
+  const iE=Math.min(iS+windowLength,time.length);
+  return[iS,iE];
+}
+function timeToSampleIndex(time,t){let lo=0,hi=time.length-1;while(lo<hi){const m=(lo+hi)>>1;if(time[m]<t)lo=m+1;else hi=m;}return Math.max(0,Math.min(time.length-1,lo));}
+
+function runProny(signalData, numModes, windowLength, energyFraction) {
+  const{time,detrended}=signalData;
+  const[iStart,iEnd]=getWindowIndices(signalData,windowLength,energyFraction);
+  const timeWin=time.slice(iStart,iEnd),sigWin=detrended.slice(iStart,iEnd);
+  const{amplitudes,exponents}=pronyDecompose(Array.from(timeWin),Array.from(sigWin),numModes);
+  const fMin=parseFloat(document.getElementById('freq-min').value)||PRONY_FREQ_MIN_DEFAULT;
+  const fMax=parseFloat(document.getElementById('freq-max').value)||PRONY_FREQ_MAX_DEFAULT;
+  const t0=timeWin[0];
+  const fittedWin=new Float64Array(timeWin.length);
+  for(let i=0;i<timeWin.length;i++){
+    const tRel=timeWin[i]-t0;let sum=0;
+    for(let k=0;k<amplitudes.length;k++){const b=exponents[k],ex=C.exp({re:b.re*tRel,im:b.im*tRel});sum+=amplitudes[k].re*ex.re-amplitudes[k].im*ex.im;}
+    fittedWin[i]=sum;
+  }
+  const fittedFull=new Float64Array(time.length);
+  for(let i=0;i<timeWin.length;i++) fittedFull[iStart+i]=fittedWin[i];
+
+  const modes=[];
+  const seenFreqs=[];
+  for(let k=0;k<amplitudes.length;k++){
+    const amp=amplitudes[k],exp=exponents[k];
+    const dampingRate=-exp.re,angFreq=exp.im;
+    if(angFreq<0) continue;
+    const freqHz=angFreq/(2*Math.PI);
+    if(freqHz<fMin||freqHz>fMax||dampingRate<=0) continue;
+    if(seenFreqs.some(f=>Math.abs(f-freqHz)<0.01)) continue;
+    seenFreqs.push(freqHz);
+    const physAmp=2*C.abs(amp);
+    const zeta=dampingRate/Math.sqrt(dampingRate**2+angFreq**2);
+    modes.push({index:k+1,amplitude:physAmp,frequencyHz:freqHz,period:freqHz>0?1/freqHz:Infinity,
+      dampingRate,dampingRatio:zeta,unstable:zeta>1.0});
+  }
+  modes.sort((a,b)=>b.amplitude-a.amplitude);
+
+  let sigMean=0;for(const v of sigWin) sigMean+=v;sigMean/=sigWin.length;
+  let ssRes=0,ssTot=0;
+  for(let i=0;i<sigWin.length;i++){ssRes+=(sigWin[i]-fittedWin[i])**2;ssTot+=(sigWin[i]-sigMean)**2;}
+  const r2=ssTot>0?Math.max(0,1-ssRes/ssTot):0;
+  const rmse=Math.sqrt(ssRes/sigWin.length);
+  return{modes,fittedSignal:fittedFull,rSquared:r2,rmse,activeStart:iStart,activeEnd:iEnd};
+}
+
+// ════════════════════════════════════════════════════════════════════
+// CONFIDENCE SCORING
+// ════════════════════════════════════════════════════════════════════
+function computeConfidence(modes, r2, rmse, signalRMS) {
+  // HIGH if R²>0.90 and damping not borderline and freq stable
+  // MEDIUM if R²>0.70
+  // LOW otherwise
+  if(!modes.length) return'LOW';
+  const relErr=signalRMS>0?rmse/signalRMS:1;
+  if(r2>0.90&&relErr<0.15) return'HIGH';
+  if(r2>0.70&&relErr<0.30) return'MEDIUM';
+  return'LOW';
+}
+
+// ════════════════════════════════════════════════════════════════════
+// STABILIZATION DIAGRAM — run MPM for orders 1..maxOrder
+// ════════════════════════════════════════════════════════════════════
+function runStabilizationDiagram() {
+  if(!cachedSignal) return;
+  const{time,detrended}=cachedSignal;
+  const windowLen=parseInt(document.getElementById('sl-window').value)||300;
+  const energyFraction=(parseInt(document.getElementById('sl-energy').value)||1)/100;
+  const svdRankPct=parseInt(document.getElementById('sl-svdrank').value)||80;
+  const[iStart,iEnd]=getWindowIndices(cachedSignal,windowLen,energyFraction);
+  const tW=time.slice(iStart,iEnd),sW=detrended.slice(iStart,iEnd);
+  const maxOrder=Math.min(16,Math.floor(tW.length/4));
+  stabResults=[];
+  for(let order=2;order<=maxOrder;order++){
+    try{
+      const res=matrixPencil(Array.from(tW),Array.from(sW),order,svdRankPct);
+      stabResults.push({order,modes:res.modes});
+    }catch(e){}
+  }
+  drawStabilizationDiagram();
+}
+
+// ════════════════════════════════════════════════════════════════════
+// PSD (Welch)
+// ════════════════════════════════════════════════════════════════════
+function computePSD(signal, dt) {
+  let N=1;while(N<signal.length&&N<16384) N<<=1;
+  const re=new Float64Array(N),im=new Float64Array(N);
+  let wSum=0;
+  for(let i=0;i<Math.min(signal.length,N);i++){const w=0.5*(1-Math.cos(2*Math.PI*i/(N-1)));re[i]=signal[i]*w;wSum+=w*w;}
+  fft(re,im);
+  const fs=1/dt,psd=[],freqs=[];
+  const nHalf=Math.floor(N/2)+1;
+  for(let k=0;k<nHalf;k++){let m=re[k]*re[k]+im[k]*im[k];if(k>0&&k<nHalf-1) m*=2;psd.push(m/(fs*N*wSum));freqs.push(k*fs/N);}
+  return{freqs,psd,fs,N};
+}
+function estimateSNR(psd, domIdx) {
+  const peakPow=psd[domIdx];
+  const noise=psd.filter((_,i)=>Math.abs(i-domIdx)>3);
+  if(!noise.length) return null;
+  return 10*Math.log10(peakPow/(noise.reduce((a,b)=>a+b)/noise.length||1e-30));
+}
+function findSpectralPeaks(psd, freqs, minFreq, maxFreq, nPeaks=5) {
+  const candidates=[];
+  for(let i=1;i<psd.length-1;i++){
+    if(freqs[i]<minFreq||freqs[i]>maxFreq) continue;
+    if(psd[i]>psd[i-1]&&psd[i]>psd[i+1]) candidates.push({f:freqs[i],p:psd[i],i});
+  }
+  candidates.sort((a,b)=>b.p-a.p);
+  return candidates.slice(0,nPeaks);
+}
+
+// ════════════════════════════════════════════════════════════════════
+// SPECTROGRAM (STFT)
+// ════════════════════════════════════════════════════════════════════
+function drawSpectrogram(signalData) {
+  const canvas=document.getElementById('spectrogram-canvas');
+  const container=document.getElementById('spectrogram-container');
+  if(!canvas||!container) return;
+  canvas.width=container.clientWidth||800;
+  canvas.height=container.clientHeight-30||300;
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  if(!signalData){ctx.fillStyle='var(--muted)';ctx.fillText('Load data first',20,40);return;}
+
+  const{detrended,time}=signalData;
+  const dt=time.length>1?time[1]-time[0]:0.02;
+  const fs=1/dt;
+  const n=detrended.length;
+
+  // STFT parameters
+  const winLen=Math.min(256,Math.floor(n/4));
+  const hop=Math.floor(winLen/4);
+  const nFFT=winLen;
+  const nFrames=Math.floor((n-winLen)/hop)+1;
+  const nBins=Math.floor(nFFT/2)+1;
+  const maxFreqDisplay=Math.min(fs/2,5);  // show 0..5 Hz
+
+  // Compute STFT
+  const stft=[];
+  for(let frame=0;frame<nFrames;frame++){
+    const start=frame*hop;
+    const re=new Float64Array(nFFT),im=new Float64Array(nFFT);
+    for(let i=0;i<winLen;i++){
+      const w=0.5*(1-Math.cos(2*Math.PI*i/(winLen-1)));
+      re[i]=detrended[start+i]*w;
+    }
+    fft(re,im);
+    const col=new Float64Array(nBins);
+    for(let k=0;k<nBins;k++) col[k]=10*Math.log10(Math.max(1e-20,re[k]*re[k]+im[k]*im[k]));
+    stft.push(col);
+  }
+
+  // Normalise for display
+  let globalMin=Infinity,globalMax=-Infinity;
+  for(const col of stft) for(const v of col){if(v>globalMax) globalMax=v;if(v<globalMin) globalMin=v;}
+  const dbRange=Math.max(40,globalMax-globalMin);
+
+  // Draw
+  const freqBinMax=Math.floor(maxFreqDisplay/fs*nFFT);
+  const displayBins=Math.min(freqBinMax,nBins);
+  const cw=canvas.width,ch=canvas.height;
+  const cellW=cw/nFrames,cellH=ch/displayBins;
+
+  for(let frame=0;frame<nFrames;frame++){
+    for(let bin=0;bin<displayBins;bin++){
+      const db=stft[frame][bin];
+      const t=(db-globalMin)/dbRange;
+      const r=Math.round(Math.min(255,Math.max(0,255*t)));
+      const g=Math.round(Math.min(255,Math.max(0,255*(t*2-0.5))));
+      const b=Math.round(Math.min(255,Math.max(0,(1-t)*180)));
+      ctx.fillStyle=`rgb(${r},${g},${b})`;
+      ctx.fillRect(frame*cellW,(displayBins-1-bin)*cellH,Math.ceil(cellW)+1,Math.ceil(cellH)+1);
+    }
+  }
+
+  // Axes labels
+  ctx.fillStyle='rgba(0,0,0,0.7)';ctx.fillRect(0,0,50,ch);
+  ctx.fillStyle='#94a3b8';ctx.font='9px JetBrains Mono';
+  const nLabels=6;
+  for(let i=0;i<=nLabels;i++){
+    const freq=maxFreqDisplay*i/nLabels;
+    const y=ch*(1-i/nLabels);
+    ctx.fillText(freq.toFixed(1)+'Hz',2,y);
+  }
+  // Time axis
+  for(let i=0;i<=8;i++){
+    const x=cw*i/8;
+    const tVal=time[0]+((time[time.length-1]-time[0])*i/8);
+    ctx.fillStyle='#64748b';ctx.fillText(tVal.toFixed(1)+'s',x+2,ch-2);
+  }
+
+  document.getElementById('spectrogram-info').textContent=
+    `STFT spectrogram — window:${winLen}pts hop:${hop}pts  freq range: 0–${maxFreqDisplay.toFixed(1)} Hz  frames:${nFrames}`;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// CHART INIT & UPDATE
+// ════════════════════════════════════════════════════════════════════
+function chartColors(){
+  return{
+    signal: isDark?'#3b82f6':'#2563eb',
+    filtered: isDark?'#f59e0b':'#d97706',
+    peaks: isDark?'#ef4444':'#dc2626',
+    pronyFit: isDark?'#22d3ee':'#0891b2',
+    mpFit: isDark?'#a855f7':'#7c3aed',
+    envelope: isDark?'#22c55e':'#16a34a',
+    hilbert: isDark?'#f97316':'#ea580c',
+    window: isDark?'rgba(59,130,246,0.12)':'rgba(37,99,235,0.08)',
+    grid: isDark?'#1a2030':'#e2e8f0',
+    tick: '#64748b', label:'#64748b',
+    tt: isDark?'#131720':'#ffffff',
+    ttb: isDark?'#252d40':'#cbd5e1',
+    ttc: isDark?'#e2e8f0':'#0f172a',
+    tts: isDark?'#94a3b8':'#475569',
+  };
+}
+
+function initChart(){
+  if(chart) return;
+  const cc=chartColors();
+  const ctx=document.getElementById('main-chart').getContext('2d');
+  chart=new Chart(ctx,{
+    type:'line',
+    data:{datasets:[
+      {label:'Original Signal',data:[],borderColor:cc.signal,borderWidth:1.5,pointRadius:0,tension:0,fill:false},
+      {label:'Filtered/Smoothed',data:[],borderColor:cc.filtered,borderWidth:1.5,pointRadius:0,tension:0,fill:false},
+      {label:'Peaks',data:[],borderColor:cc.peaks,backgroundColor:cc.peaks,pointRadius:5,pointStyle:'circle',showLine:false},
+      {label:'Prony Fit',data:[],borderColor:cc.pronyFit,borderWidth:2,borderDash:[5,3],pointRadius:0,tension:0,fill:false},
+      {label:'Matrix Pencil Fit',data:[],borderColor:cc.mpFit,borderWidth:2,borderDash:[4,2],pointRadius:0,tension:0,fill:false},
+      {label:'Peak Envelope',data:[],borderColor:cc.envelope,borderWidth:1.5,borderDash:[3,3],pointRadius:0,tension:0,fill:false},
+      {label:'Hilbert Envelope',data:[],borderColor:cc.hilbert,borderWidth:1.5,borderDash:[2,4],pointRadius:0,tension:0,fill:false},
+      {label:'Analysis Window',data:[],borderColor:'rgba(59,130,246,0.15)',backgroundColor:cc.window,fill:true,pointRadius:0,borderWidth:0,tension:0},
+    ]},
+    options:{
+      animation:false,responsive:true,maintainAspectRatio:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{labels:{color:'#94a3b8',font:{family:'JetBrains Mono',size:9}}},
+        tooltip:{backgroundColor:cc.tt,borderColor:cc.ttb,borderWidth:1,
+          titleColor:cc.ttc,bodyColor:cc.tts,
+          titleFont:{family:'JetBrains Mono'},bodyFont:{family:'JetBrains Mono',size:10},
+          callbacks:{label:ctx=>` ${ctx.dataset.label}: ${typeof ctx.raw==='object'?ctx.raw.y?.toFixed(4):ctx.raw}`}
+        },
+        zoom:{pan:{enabled:true,mode:'xy'},zoom:{drag:{enabled:false}}}
+      },
+      scales:{
+        x:{type:'linear',title:{display:true,text:'Time (s)',color:cc.label,font:{family:'JetBrains Mono',size:9}},
+          ticks:{color:cc.tick,font:{family:'JetBrains Mono',size:8},maxTicksLimit:12},grid:{color:cc.grid}},
+        y:{title:{display:true,text:'Signal',color:cc.label,font:{family:'JetBrains Mono',size:9}},
+          ticks:{color:cc.tick,font:{family:'JetBrains Mono',size:8}},grid:{color:cc.grid}},
+      },
+    },
+  });
+}
+function initPSDChart(){
+  if(psdChart) return;
+  const cc=chartColors();
+  const ctx=document.getElementById('psd-chart').getContext('2d');
+  psdChart=new Chart(ctx,{
+    type:'line',
+    data:{datasets:[
+      {label:'PSD',data:[],borderColor:'#22d3ee',borderWidth:1.5,backgroundColor:'rgba(34,211,238,0.06)',fill:true,pointRadius:0,tension:0.2},
+      {label:'Dominant Freq',data:[],borderColor:'#ef4444',borderWidth:2,borderDash:[4,3],pointRadius:0,tension:0,fill:false},
+    ]},
+    options:{
+      animation:false,responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{labels:{color:'#94a3b8',font:{family:'JetBrains Mono',size:9}}},
+        tooltip:{backgroundColor:'#131720',borderColor:'#252d40',borderWidth:1,
+          titleColor:'#e2e8f0',bodyColor:'#94a3b8',
+          titleFont:{family:'JetBrains Mono'},bodyFont:{family:'JetBrains Mono',size:10},
+          callbacks:{title:i=>`f = ${i[0]?.raw?.x?.toFixed(4)} Hz`,label:ctx=>` PSD: ${ctx.raw?.y?.toExponential(3)}`}
+        },
+      },
+      scales:{
+        x:{type:'linear',title:{display:true,text:'Frequency (Hz)',color:'#64748b',font:{family:'JetBrains Mono',size:9}},
+          ticks:{color:'#64748b',font:{family:'JetBrains Mono',size:8}},grid:{color:'#1a2030'},min:0,max:5},
+        y:{type:'logarithmic',title:{display:true,text:'PSD',color:'#64748b',font:{family:'JetBrains Mono',size:9}},
+          ticks:{color:'#64748b',font:{family:'JetBrains Mono',size:8},callback:v=>v.toExponential(0)},grid:{color:'#1a2030'}},
+      },
+    },
+  });
+}
+
+function updateChart(signalData, peakResult, pronyResult, mpResult) {
+  initChart();
+  const{time,raw,smoothed,steadyStateOffset:off}=signalData;
+  chart.data.datasets[0].data=Array.from(raw).map((v,i)=>({x:time[i],y:v}));
+  chart.data.datasets[1].data=Array.from(smoothed).map((v,i)=>({x:time[i],y:v+off}));
+
+  if(peakResult){
+    chart.data.datasets[2].data=peakResult.peakTimes.map((t,i)=>({x:t,y:peakResult.peakValues[i]+off}));
+    chart.data.datasets[2].hidden=false;
+  }else{chart.data.datasets[2].data=[];chart.data.datasets[2].hidden=true;}
+
+  if(pronyResult){
+    chart.data.datasets[3].data=Array.from(pronyResult.fittedSignal).map((v,i)=>({x:time[i],y:v+off}));
+    chart.data.datasets[3].label=`Prony Fit (R²=${pronyResult.rSquared.toFixed(4)})`;
+    chart.data.datasets[3].hidden=false;
+  }else{chart.data.datasets[3].data=[];chart.data.datasets[3].hidden=true;}
+
+  if(mpResult){
+    const off2=signalData.steadyStateOffset;
+    const iS=manualWindowT0!==null?timeToSampleIndex(time,manualWindowT0):0;
+    const pts=Array.from(mpResult.fittedSignal).map((v,i)=>({x:time[i+iS]??time[iS],y:v+off2}));
+    // Build full-length array aligning to active window
+    const[wS,wE]=getWindowIndices(signalData,parseInt(document.getElementById('sl-window').value)||300,(parseInt(document.getElementById('sl-energy').value)||1)/100);
+    const fullFit=new Array(time.length).fill(null);
+    for(let i=0;i<mpResult.fittedSignal.length;i++) fullFit[wS+i]={x:time[wS+i],y:mpResult.fittedSignal[i]+off2};
+    chart.data.datasets[4].data=fullFit.filter(Boolean);
+    chart.data.datasets[4].label=`MPM Fit (R²=${mpResult.rSquared.toFixed(4)})`;
+    chart.data.datasets[4].hidden=false;
+  }else{chart.data.datasets[4].data=[];chart.data.datasets[4].hidden=true;}
+
+  // Peak envelope
+  if(peakResult?.envelope){
+    const env=peakResult.envelope;
+    const t0=time[0],tN=time[time.length-1];
+    const pts=[];for(let t=t0;t<=tN;t+=(tN-t0)/200) pts.push({x:t,y:env.A*Math.exp(-env.sigma*t)+off});
+    chart.data.datasets[5].data=pts;chart.data.datasets[5].hidden=false;
+  }else{chart.data.datasets[5].data=[];chart.data.datasets[5].hidden=true;}
+
+  // Hilbert envelope (always show if data loaded)
+  const hEnv=hilbertEnvelope(Array.from(signalData.detrended));
+  chart.data.datasets[6].data=Array.from(hEnv).map((v,i)=>({x:time[i],y:v+off}));
+  chart.data.datasets[6].hidden=false;
+
+  // Window shading
+  const activeRes=pronyResult||mpResult;
+  if(activeRes?.activeStart!==undefined){
+    const t0w=time[activeRes.activeStart],t1w=time[Math.min((activeRes.activeEnd??activeRes.activeStart+1)-1,time.length-1)];
+    const yMax=Math.max(...Array.from(raw));
+    chart.data.datasets[7].data=[{x:t0w,y:yMax*1.05},{x:t1w,y:yMax*1.05}];
+    chart.data.datasets[7].hidden=false;
+  }else if(manualWindowT0!==null){
+    const yMax=Math.max(...Array.from(raw));
+    chart.data.datasets[7].data=[{x:manualWindowT0,y:yMax*1.05},{x:manualWindowT1,y:yMax*1.05}];
+    chart.data.datasets[7].hidden=false;
+  }else{chart.data.datasets[7].data=[];chart.data.datasets[7].hidden=true;}
+
+  chart.update('none');
+}
+
+function updatePSD(signalData) {
+  const dt=signalData.time.length>1?signalData.time[1]-signalData.time[0]:0.02;
+  initPSDChart();
+  const{freqs,psd,fs}=computePSD(Array.from(signalData.detrended),dt);
+  const maxFreq=Math.min(5,fs/2);
+  const fData=[];
+  for(let i=0;i<freqs.length;i++){if(freqs[i]>maxFreq) break;fData.push({x:freqs[i],y:Math.max(psd[i],1e-20)});}
+  let domIdx=0;for(let i=1;i<fData.length;i++) if(fData[i].y>fData[domIdx].y) domIdx=i;
+  const domFreq=fData[domIdx]?.x??0;
+  const snr=estimateSNR(fData.map(d=>d.y),domIdx);
+  const fMin=parseFloat(document.getElementById('freq-min').value)||PRONY_FREQ_MIN_DEFAULT;
+  const fMax=parseFloat(document.getElementById('freq-max').value)||PRONY_FREQ_MAX_DEFAULT;
+  const specPeaks=findSpectralPeaks(fData.map(d=>d.y),fData.map(d=>d.x),fMin,fMax);
+  psdChart.data.datasets[0].data=fData;
+  psdChart.data.datasets[1].data=[{x:domFreq,y:fData[0]?.y??1e-10},{x:domFreq,y:fData[domIdx]?.y??1}];
+  psdChart.options.scales.x.max=maxFreq;
+  psdChart.update('none');
+  document.getElementById('psd-dom').textContent=domFreq.toFixed(4)+' Hz';
+  document.getElementById('psd-snr').textContent=snr!=null?snr.toFixed(1):'—';
+  document.getElementById('psd-nyq').textContent=(fs/2).toFixed(2);
+  document.getElementById('psd-peaks').textContent=specPeaks.map(p=>p.f.toFixed(3)+'Hz').join(', ')||'—';
+}
+
+// Stabilization diagram
+function drawStabilizationDiagram() {
+  const container=document.getElementById('stab-container');
+  const canvas=document.getElementById('stab-chart');
+  if(!container||!canvas||!stabResults.length) return;
+  canvas.width=container.clientWidth||800;
+  canvas.height=container.clientHeight-30||300;
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  const cw=canvas.width,ch=canvas.height;
+  const padL=50,padR=20,padT=20,padB=30;
+  const pw=cw-padL-padR,ph=ch-padT-padB;
+
+  const fMin=parseFloat(document.getElementById('freq-min').value)||0.1;
+  const fMax=parseFloat(document.getElementById('freq-max').value)||5.0;
+  const maxOrder=stabResults[stabResults.length-1]?.order||16;
+
+  ctx.fillStyle=isDark?'#0b0e14':'#f1f5f9';ctx.fillRect(0,0,cw,ch);
+  ctx.strokeStyle=isDark?'#252d40':'#cbd5e1';ctx.lineWidth=1;
+  ctx.strokeRect(padL,padT,pw,ph);
+
+  // Axes
+  ctx.fillStyle=isDark?'#64748b':'#64748b';ctx.font='9px JetBrains Mono';
+  // X axis: frequency
+  const nFTicks=8;
+  for(let i=0;i<=nFTicks;i++){
+    const f=fMin+(fMax-fMin)*i/nFTicks;
+    const x=padL+pw*(f-fMin)/(fMax-fMin);
+    ctx.fillText(f.toFixed(2),x-10,ch-5);
+    ctx.strokeStyle=isDark?'#1a2030':'#e2e8f0';ctx.beginPath();ctx.moveTo(x,padT);ctx.lineTo(x,padT+ph);ctx.stroke();
+  }
+  ctx.fillStyle=isDark?'#64748b':'#475569';ctx.fillText('Frequency (Hz)',padL+pw/2-30,ch);
+  // Y axis: model order
+  for(let order=2;order<=maxOrder;order+=2){
+    const y=padT+ph-ph*(order-2)/(maxOrder-2);
+    ctx.fillText(order,2,y+3);
+    ctx.strokeStyle=isDark?'#1a2030':'#e2e8f0';ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(padL+pw,y);ctx.stroke();
+  }
+  ctx.fillStyle=isDark?'#64748b':'#475569';ctx.fillText('Model Order',2,padT+ph/2);
+
+  // Plot poles
+  for(const{order,modes}of stabResults){
+    const y=padT+ph-ph*(order-2)/(maxOrder-2);
+    for(const m of modes){
+      const x=padL+pw*(m.frequencyHz-fMin)/(fMax-fMin);
+      const stable=m.dampingRatio>=0.02&&m.dampingRatio<=1.0;
+      const highDamp=m.dampingRatio>=COMPLIANCE_MIN_DAMPING;
+      ctx.strokeStyle=stable?(highDamp?'#22c55e':'#f59e0b'):'#ef4444';
+      ctx.lineWidth=1.2;
+      if(stable){
+        ctx.beginPath();ctx.arc(x,y,4,0,2*Math.PI);ctx.stroke();
+      }else{
+        // X marker
+        ctx.beginPath();ctx.moveTo(x-3,y-3);ctx.lineTo(x+3,y+3);ctx.moveTo(x+3,y-3);ctx.lineTo(x-3,y+3);ctx.stroke();
+      }
+    }
+  }
+
+  // Legend
+  ctx.fillStyle=isDark?'#22c55e':'#16a34a';ctx.fillText('○ stable ζ≥10%',padL+5,padT+12);
+  ctx.fillStyle=isDark?'#f59e0b':'#d97706';ctx.fillText('○ stable ζ<10%',padL+90,padT+12);
+  ctx.fillStyle=isDark?'#ef4444':'#dc2626';ctx.fillText('× unstable',padL+175,padT+12);
+  document.getElementById('stab-info').textContent=
+    `Stabilization diagram — ${stabResults.length} orders analysed. Vertical clusters indicate physical modes. Green = ζ≥10% compliant.`;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// METRICS DASHBOARD
+// ════════════════════════════════════════════════════════════════════
+function card(label, value, unit, sub, extraClass, conf) {
+  const cls=extraClass?` ${extraClass}`:'';
+  const confHTML=conf?`<span class="mc-conf conf-${conf.toLowerCase()}">${conf}</span>`:'';
+  return`<div class="metric-card${cls}">
+    <div class="mc-label">${label}</div>
+    <div class="mc-value ${extraClass||''}">${value}</div>
+    <div class="mc-unit">${unit}</div>
+    ${sub?`<div class="mc-sub">${sub}</div>`:''}
+    ${confHTML}
+  </div>`;
+}
+function buildMetricsDashboard(peakRes, pronyRes, mpRes, signalData) {
+  const panel=document.getElementById('metrics-panel');
+  let html='';
+  const sigArr=signalData?Array.from(signalData.detrended):[];
+  const sigRMS=sigArr.length?Math.sqrt(sigArr.reduce((a,b)=>a+b*b)/sigArr.length):1;
+
+  if(peakRes){
+    const zPass=peakRes.avgDampingRatio>=COMPLIANCE_MIN_DAMPING;
+    const hPass=peakRes.avgHalvingTime<=COMPLIANCE_MAX_HALVING_T;
+    html+=`<div class="section-title">Peak / Log Decrement — AEMO GPS Compliance</div>`;
+    html+=card('Avg Damping Ratio ζ',(peakRes.avgDampingRatio*100).toFixed(2)+'%','≥ 10% required (GPS)',
+      `σ = ${peakRes.stdDampingRatio.toFixed(4)} std dev`,zPass?'pass':'fail');
+    html+=card('Avg Halving Time T½',peakRes.avgHalvingTime===Infinity?'∞':peakRes.avgHalvingTime.toFixed(3),'s  (≤ 5.0 s required)','',hPass?'pass':'fail');
+    html+=card('Avg Damping Rate σ',peakRes.avgSigma.toFixed(4),'Np/s','');
+    html+=card('Oscillation Freq',peakRes.avgFrequency.toFixed(4),'Hz',`±${peakRes.stdFrequency.toFixed(4)} Hz`);
+    html+=card('Pairs Analysed',peakRes.pairs.length,'peak pairs','');
+    html+=card('Overall Result',zPass&&hPass?'COMPLIANT':'NON-COMPLIANT','AEMO GPS criterion','',zPass&&hPass?'pass':'fail');
+  }
+  if(pronyRes){
+    const conf=computeConfidence(pronyRes.modes,pronyRes.rSquared,pronyRes.rmse,sigRMS);
+    html+=`<div class="section-title">Classical Prony Analysis <span class="mode-badge mb-pr">PRONY</span></div>`;
+    html+=card('Model R²',pronyRes.rSquared.toFixed(6),'goodness of fit',
+      pronyRes.rSquared>0.95?'Excellent':pronyRes.rSquared>0.80?'Good':'Poor — try more modes',
+      pronyRes.rSquared>0.80?'pass':'warn',conf);
+    html+=card('RMSE',pronyRes.rmse.toFixed(4),'(fit error)','');
+    html+=card('Modes Found',pronyRes.modes.length,`of ${document.getElementById('sl-modes').value} requested`,'');
+    pronyRes.modes.forEach((m,i)=>{
+      const mPass=m.dampingRatio>=COMPLIANCE_MIN_DAMPING;
+      html+=card(`Prony Mode ${i+1}`,m.frequencyHz.toFixed(4),'Hz',
+        `ζ=${(m.dampingRatio*100).toFixed(2)}%  σ=${m.dampingRate.toFixed(4)} Np/s  T=${m.period.toFixed(3)}s`,
+        mPass?'':'warn');
+    });
+  }
+  if(mpRes){
+    const conf=computeConfidence(mpRes.modes,mpRes.rSquared,mpRes.rmse,sigRMS);
+    html+=`<div class="section-title">Matrix Pencil Method <span class="mode-badge mb-mp">MPM</span></div>`;
+    html+=card('Model R²',mpRes.rSquared.toFixed(6),'goodness of fit',
+      mpRes.rSquared>0.95?'Excellent':mpRes.rSquared>0.80?'Good':'Poor — adjust SVD rank',
+      mpRes.rSquared>0.80?'pass':'warn',conf);
+    html+=card('RMSE',mpRes.rmse.toFixed(4),'(fit error)','');
+    html+=card('SVD Rank Used',mpRes.svdRank,'eigenvalue rank reduction','');
+    mpRes.modes.forEach((m,i)=>{
+      const mPass=m.dampingRatio>=COMPLIANCE_MIN_DAMPING;
+      html+=card(`MPM Mode ${i+1}`,m.frequencyHz.toFixed(4),'Hz',
+        `ζ=${(m.dampingRatio*100).toFixed(2)}%  σ=${m.dampingRate.toFixed(4)} Np/s  T=${m.period.toFixed(3)}s`,
+        mPass?'':'warn');
+    });
+  }
+  if(!peakRes&&!pronyRes&&!mpRes){
+    html='<div style="color:var(--muted);padding:20px">Run a calculation to populate the metrics dashboard.</div>';
+  }
+  panel.innerHTML=html;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// METHOD COMPARISON TABLE
+// ════════════════════════════════════════════════════════════════════
+function buildCompareTable(peakRes, pronyRes, mpRes) {
+  const panel=document.getElementById('compare-panel');
+  if(!peakRes&&!pronyRes&&!mpRes){
+    panel.innerHTML='<div style="color:var(--muted);padding:20px">Run with "All Methods" to compare, or run each individually.</div>';
+    return;
+  }
+  // Gather dominant mode per method
+  const rows=[];
+  if(peakRes) rows.push({method:'Peak/LogDec',badge:'mb-pk',freq:peakRes.avgFrequency,freqStd:peakRes.stdFrequency,
+    zeta:peakRes.avgDampingRatio,zetaStd:peakRes.stdDampingRatio,sigma:peakRes.avgSigma,r2:null,rmse:null,
+    halfT:peakRes.avgHalvingTime,compliant:peakRes.avgDampingRatio>=0.10&&peakRes.avgHalvingTime<=5.0});
+  if(pronyRes&&pronyRes.modes.length) rows.push({method:'Classical Prony',badge:'mb-pr',
+    freq:pronyRes.modes[0].frequencyHz,freqStd:null,zeta:pronyRes.modes[0].dampingRatio,zetaStd:null,
+    sigma:pronyRes.modes[0].dampingRate,r2:pronyRes.rSquared,rmse:pronyRes.rmse,
+    halfT:Math.LN2/pronyRes.modes[0].dampingRate,compliant:pronyRes.modes[0].dampingRatio>=0.10});
+  if(mpRes&&mpRes.modes.length) rows.push({method:'Matrix Pencil',badge:'mb-mp',
+    freq:mpRes.modes[0].frequencyHz,freqStd:null,zeta:mpRes.modes[0].dampingRatio,zetaStd:null,
+    sigma:mpRes.modes[0].dampingRate,r2:mpRes.rSquared,rmse:mpRes.rmse,
+    halfT:Math.LN2/mpRes.modes[0].dampingRate,compliant:mpRes.modes[0].dampingRatio>=0.10});
+
+  if(!rows.length){panel.innerHTML='<div style="color:var(--muted);padding:20px">No valid modes found in any method.</div>';return;}
+
+  const bestR2=rows.reduce((b,r)=>r.r2!=null&&(b==null||r.r2>b)?r.r2:b,null);
+  const bestZeta=Math.max(...rows.map(r=>r.zeta));
+
+  let html=`<h3 style="font-family:var(--sans);font-size:13px;font-weight:700;color:var(--accent2);margin-bottom:12px">
+    Dominant Mode Comparison — All Methods</h3>`;
+  html+=`<table class="compare-table"><thead><tr>
+    <th>Method</th><th>Freq (Hz)</th><th>ζ (%)</th><th>σ (Np/s)</th><th>T½ (s)</th><th>R²</th><th>RMSE</th><th>GPS</th>
+  </tr></thead><tbody>`;
+  for(const r of rows){
+    const isBestZeta=Math.abs(r.zeta-bestZeta)<0.001;
+    html+=`<tr>
+      <td><strong>${r.method}</strong> <span class="mode-badge ${r.badge}">${r.badge==='mb-pk'?'PEAK':r.badge==='mb-pr'?'PRONY':'MPM'}</span></td>
+      <td>${r.freq.toFixed(4)}${r.freqStd!=null?` ±${r.freqStd.toFixed(4)}`:''}  </td>
+      <td class="${isBestZeta?'best':r.zeta<0.1?'poor':''}">${(r.zeta*100).toFixed(2)}${r.zetaStd!=null?` ±${(r.zetaStd*100).toFixed(2)}`:''}%</td>
+      <td>${r.sigma.toFixed(4)}</td>
+      <td>${r.halfT===Infinity?'∞':r.halfT.toFixed(3)}</td>
+      <td class="${r.r2!=null&&r.r2===bestR2?'best':''}">${r.r2!=null?r.r2.toFixed(4):'—'}</td>
+      <td>${r.rmse!=null?r.rmse.toFixed(4):'—'}</td>
+      <td class="${r.compliant?'best':'poor'}">${r.compliant?'✓ PASS':'✗ FAIL'}</td>
+    </tr>`;
+  }
+  html+='</tbody></table>';
+
+  // Consensus check
+  if(rows.length>1){
+    const freqs=rows.map(r=>r.freq);
+    const freqSpread=Math.max(...freqs)-Math.min(...freqs);
+    const zetas=rows.map(r=>r.zeta);
+    const zetaSpread=Math.max(...zetas)-Math.min(...zetas);
+    html+=`<div style="margin-top:16px;padding:10px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-size:10px;">
+      <strong style="color:var(--accent2)">Cross-Method Consensus:</strong><br>
+      Frequency spread: ${(freqSpread*1000).toFixed(1)} mHz (${freqSpread<0.01?'✓ Good agreement':'⚠ Significant spread — check window/order'})<br>
+      Damping spread: ${(zetaSpread*100).toFixed(2)}% (${zetaSpread<0.03?'✓ Good agreement':'⚠ Significant spread — noisy signal or short window'})<br>
+      ${rows.every(r=>r.compliant)?'<span style="color:var(--success)">✓ All methods report COMPLIANCE</span>':'<span style="color:var(--danger)">✗ At least one method reports NON-COMPLIANCE</span>'}
+    </div>`;
+  }
+  panel.innerHTML=html;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// TEXT OUTPUT FORMATTERS
+// ════════════════════════════════════════════════════════════════════
+function pad(str,w){return String(str).padStart(w);}
+function hr(n=64){return '═'.repeat(n);}
+
+function fmtHeader(algo, signalData) {
+  const dt=signalData.dt||0.02;
+  const n=signalData.time.length;
+  return[
+    hr(),
+    `GENERATOR OSCILLATION DAMPING ANALYSIS — v${VERSION}`,
+    `Study Mode : ${currentStudyMode.toUpperCase()}`,
+    `Algorithm  : ${algo}`,
+    `Timestamp  : ${new Date().toISOString()}`,
+    `Signal     : ${n} samples  Δt=${dt.toFixed(5)}s  Fs=${(1/dt).toFixed(2)} Hz`,
+    `Duration   : ${(signalData.time[n-1]-signalData.time[0]).toFixed(3)} s`,
+    `Detrend    : ${document.getElementById('detrend-select').value}`,
+    `Filter     : ${document.getElementById('filter-select').value}`,
+    `Freq Range : ${document.getElementById('freq-min').value}–${document.getElementById('freq-max').value} Hz`,
+    hr(),''
+  ].join('\n');
+}
+
+function fmtPeakResult(result, signalData) {
+  const cols=['Pair','Time1(s)','Peak1','Time2(s)','Peak2','LogDec','σ(Np/s)','ζ','Freq(Hz)','T½(s)'];
+  const widths=[5,9,10,9,10,9,9,9,9,10];
+  const hdr=cols.map((c,i)=>pad(c,widths[i])).join(' ');
+  const rows=result.pairs.map(p=>[
+    pad(p.pairIndex,5),pad(p.time1.toFixed(4),9),pad(p.peak1.toFixed(4),10),
+    pad(p.time2.toFixed(4),9),pad(p.peak2.toFixed(4),10),
+    pad(p.logDecrement.toFixed(5),9),pad(p.sigma.toFixed(5),9),
+    pad(p.dampingRatio.toFixed(5),9),pad(p.frequencyHz.toFixed(4),9),
+    pad(p.halvingTime===Infinity?'Inf':p.halvingTime.toFixed(4),10),
+  ].join(' ')).join('\n');
+  const zPass=result.avgDampingRatio>=COMPLIANCE_MIN_DAMPING;
+  const hPass=result.avgHalvingTime<=COMPLIANCE_MAX_HALVING_T;
+  return[
+    fmtHeader('Peak/Log Decrement',signalData),
+    hdr,'-'.repeat(hdr.length),rows,'',
+    `Average ζ    = ${result.avgDampingRatio.toFixed(4)}  ±${result.stdDampingRatio.toFixed(4)}`,
+    `Average σ    = ${result.avgSigma.toFixed(4)} Np/s`,
+    `Average T½   = ${result.avgHalvingTime.toFixed(4)} s`,
+    `Average Freq = ${result.avgFrequency.toFixed(4)} Hz  ±${result.stdFrequency.toFixed(4)}`,
+    result.envelope?`Envelope fit: A=${result.envelope.A.toFixed(4)}, σ=${result.envelope.sigma.toFixed(4)} Np/s`:'',
+    '','━━ COMPLIANCE (AEMO GPS) ━━',
+    `${zPass?'PASS ✓':'FAIL ✗'}  Damping Ratio ≥ ${COMPLIANCE_MIN_DAMPING} (got ${result.avgDampingRatio.toFixed(4)})`,
+    `${hPass?'PASS ✓':'FAIL ✗'}  Halving Time  ≤ ${COMPLIANCE_MAX_HALVING_T} s (got ${result.avgHalvingTime.toFixed(4)})`,
+  ].join('\n');
+}
+
+function fmtMPMResult(result, signalData) {
+  const lines=[
+    fmtHeader('Matrix Pencil Method (MPM)',signalData),
+    `SVD Rank: ${result.svdRank}   R²=${result.rSquared.toFixed(6)}   RMSE=${result.rmse.toFixed(4)}`,
+    `Top 5 singular values: ${result.singularValues.slice(0,5).map(s=>s.toFixed(4)).join('  ')}`,
+    '',
+  ];
+  if(!result.modes.length){
+    lines.push('⚠  No valid modes found in the specified frequency range.');
+    lines.push('Suggestions: reduce SVD rank %, increase window, check detrend settings.');
+  }else{
+    const hdr=`${'#'.padStart(3)} ${'Freq(Hz)'.padStart(9)} ${'Period(s)'.padStart(10)} ${'σ(Np/s)'.padStart(9)} ${'ζ(%)'.padStart(8)} ${'Amp'.padStart(9)} ${'GPS'.padStart(6)}`;
+    lines.push(hdr,'-'.repeat(hdr.length));
+    for(let i=0;i<result.modes.length;i++){
+      const m=result.modes[i];
+      const gps=m.dampingRatio>=COMPLIANCE_MIN_DAMPING?'OK':'⚠LOW';
+      lines.push(`${String(i+1).padStart(3)} ${m.frequencyHz.toFixed(4).padStart(9)} ${m.period.toFixed(4).padStart(10)} ${m.dampingRate.toFixed(4).padStart(9)} ${(m.dampingRatio*100).toFixed(2).padStart(8)} ${(m.amplitude||0).toFixed(4).padStart(9)} ${gps.padStart(6)}`);
+    }
+    lines.push('','━━ COMPLIANCE (AEMO GPS) ━━');
+    const primary=result.modes[0];
+    lines.push(`${primary.dampingRatio>=0.10?'PASS ✓':'FAIL ✗'}  Primary mode ζ=${(primary.dampingRatio*100).toFixed(2)}%`);
+    const halfT=Math.LN2/primary.dampingRate;
+    lines.push(`${halfT<=5.0?'PASS ✓':'FAIL ✗'}  Primary T½=${halfT.toFixed(3)} s`);
+  }
+  return lines.join('\n');
+}
+
+function fmtPronyResult(result, signalData) {
+  const t=signalData.time;
+  const t0=t[result.activeStart],t1=t[Math.min(result.activeEnd,t.length-1)];
+  const lines=[
+    fmtHeader('Classical Prony',signalData),
+    `Window: [${result.activeStart}–${result.activeEnd}]  ${t0.toFixed(3)}s–${t1.toFixed(3)}s  ${result.activeEnd-result.activeStart} samples`,
+    `R²=${result.rSquared.toFixed(6)}   RMSE=${result.rmse.toFixed(4)}`,''
+  ];
+  if(!result.modes.length){
+    lines.push('⚠  No modes in band. Try: increase Modes, adjust window.');
+  }else{
+    const hdr=`${'#'.padStart(3)} ${'Amp'.padStart(10)} ${'Freq(Hz)'.padStart(9)} ${'Period(s)'.padStart(10)} ${'σ(Np/s)'.padStart(9)} ${'ζ(%)'.padStart(8)} ${'GPS'.padStart(6)}`;
+    lines.push(hdr,'-'.repeat(hdr.length));
+    for(const m of result.modes){
+      const gps=m.dampingRatio>=COMPLIANCE_MIN_DAMPING?'OK':'⚠LOW';
+      lines.push(`${String(m.index).padStart(3)} ${m.amplitude.toFixed(5).padStart(10)} ${m.frequencyHz.toFixed(4).padStart(9)} ${m.period.toFixed(4).padStart(10)} ${m.dampingRate.toFixed(4).padStart(9)} ${(m.dampingRatio*100).toFixed(2).padStart(8)} ${gps.padStart(6)}`);
+    }
+  }
+  return lines.join('\n');
+}
+
+// ════════════════════════════════════════════════════════════════════
+// CSV EXPORT
+// ════════════════════════════════════════════════════════════════════
+let lastExportData=null;
+function exportCSV(){
+  if(!lastExportData){showToast('Run Calculate first.',true);return;}
+  const{headers,rows}=lastExportData;
+  const blob=new Blob([[headers.join(','),...rows.map(r=>r.join(','))].join('\n')],{type:'text/csv'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download=`damping_${currentStudyMode}_${Date.now()}.csv`;a.click();URL.revokeObjectURL(a.href);
+}
+function exportReport(){
+  const txt=document.getElementById('output-box').textContent;
+  if(!txt||txt.includes('Load data')){showToast('Run Calculate first.',true);return;}
+  const blob=new Blob([txt],{type:'text/plain'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download=`damping_report_${currentStudyMode}_${Date.now()}.txt`;a.click();URL.revokeObjectURL(a.href);
+}
+function setPeakExportData(result){
+  const headers=['Pair','Time1_s','Peak1','Time2_s','Peak2','LogDecrement','Sigma_Nps','DampingRatio','Freq_Hz','HalvingTime_s'];
+  const rows=result.pairs.map(p=>[p.pairIndex,p.time1.toFixed(6),p.peak1.toFixed(6),p.time2.toFixed(6),p.peak2.toFixed(6),
+    p.logDecrement.toFixed(8),p.sigma.toFixed(8),p.dampingRatio.toFixed(8),p.frequencyHz.toFixed(6),p.halvingTime===Infinity?'Inf':p.halvingTime.toFixed(6)]);
+  lastExportData={headers,rows};
+}
+function setMPExportData(result){
+  const headers=['Mode','Freq_Hz','Period_s','DampingRate_Nps','DampingRatio','Amplitude','GPS_Status'];
+  const rows=result.modes.map((m,i)=>[i+1,m.frequencyHz.toFixed(6),m.period.toFixed(6),m.dampingRate.toFixed(6),
+    m.dampingRatio.toFixed(6),(m.amplitude||0).toFixed(6),m.dampingRatio>=0.10?'COMPLIANT':'NON_COMPLIANT']);
+  lastExportData={headers,rows};
+}
+function setPronyExportData(result){
+  const headers=['Mode','Amplitude','Freq_Hz','Period_s','DampingRate_Nps','DampingRatio','GPS_Status'];
+  const rows=result.modes.map(m=>[m.index,m.amplitude.toFixed(8),m.frequencyHz.toFixed(6),m.period.toFixed(6),
+    m.dampingRate.toFixed(6),m.dampingRatio.toFixed(6),m.dampingRatio>=0.10?'COMPLIANT':'NON_COMPLIANT']);
+  lastExportData={headers,rows};
+}
+
+// ════════════════════════════════════════════════════════════════════
+// FILE LOADING
+// ════════════════════════════════════════════════════════════════════
+document.getElementById('file-input').addEventListener('change',function(){
+  const file=this.files[0];if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const content=e.target.result;
+    document.getElementById('input-box').value=content;
+    try{parsedColumns=parseAllColumns(content);updateColumnSelectors(parsedColumns.headers);}catch(err){}
+    showToast(`Loaded: ${file.name} (${Math.round(file.size/1024)} KB)`);
+  };
+  reader.readAsText(file);this.value='';
+});
+
+// ════════════════════════════════════════════════════════════════════
+// MAIN CALCULATE
+// ════════════════════════════════════════════════════════════════════
+function calculate(){
+  const rawText=document.getElementById('input-box').value;
+  const algo=document.getElementById('algo-select').value;
+  const numPeaks=parseInt(document.getElementById('num-peaks').value)||6;
+  const prominence=parseFloat(document.getElementById('prominence').value)||0.005;
+  const numModes=parseInt(document.getElementById('sl-modes').value)||6;
+  const windowLen=parseInt(document.getElementById('sl-window').value)||300;
+  const energyPct=(parseInt(document.getElementById('sl-energy').value)||1)/100;
+  const svdRankPct=parseInt(document.getElementById('sl-svdrank').value)||80;
+
+  let time,vals;
+  try{
+    parsedColumns=parseAllColumns(rawText);
+    updateColumnSelectors(parsedColumns.headers);
+    const tCol=parseInt(document.getElementById('col-time').value)||0;
+    const sCol=parseInt(document.getElementById('col-signal').value)||1;
+    time=parsedColumns.columns[tCol];vals=parsedColumns.columns[sCol];
+    if(!time||!vals) throw new Error('Column index out of range.');
+  }catch(e){showToast('Parse error: '+e.message,true);return;}
+
+  const sampInfo=checkUniformSampling(time);
+  document.getElementById('st-nonuniform').style.display=sampInfo.uniform?'none':'';
+
+  let signalData;
+  try{signalData=preprocess(time,vals);}
+  catch(e){showToast('Pre-processing error: '+e.message,true);return;}
+  cachedSignal=signalData;
+
+  setStatus(time.length,time[time.length-1]-time[0],sampInfo.dt,algo.toUpperCase());
+  updatePSD(signalData);
+
+  let pronyRes=null,mpRes=null,peakRes=null;
+
+  // ── Run chosen algorithm(s) ────────────────────────────────────
+  if(algo==='peak'||algo==='all'){
+    try{
+      peakRes=runPeakEnvelope(signalData,numPeaks,prominence);
+      cachedPeakRes=peakRes;
+    }catch(e){showToast('Peak error: '+e.message,true);if(algo==='peak'){writeOutput('Peak error: '+e.message);return;}}
+  }
+  if(algo==='prony'||algo==='all'){
+    try{
+      pronyRes=runProny(signalData,numModes,windowLen,energyPct);
+      cachedPronyRes=pronyRes;
+    }catch(e){showToast('Prony error: '+e.message,true);if(algo==='prony'){writeOutput('Prony error: '+e.message);return;}}
+  }
+  if(algo==='mp'||algo==='all'){
+    try{
+      const[iS,iE]=getWindowIndices(signalData,windowLen,energyPct);
+      const tW=Array.from(time.slice(iS,iE)),sW=Array.from(signalData.detrended.slice(iS,iE));
+      mpRes=matrixPencil(tW,sW,numModes,svdRankPct);
+      mpRes.activeStart=iS;mpRes.activeEnd=iE;
+      cachedMPRes=mpRes;
+    }catch(e){showToast('Matrix Pencil error: '+e.message,true);if(algo==='mp'){writeOutput('MPM error: '+e.message);return;}}
+  }
+
+  // ── Output ────────────────────────────────────────────────────
+  let outText='';
+  if(algo==='all'){
+    if(peakRes) outText+=fmtPeakResult(peakRes,signalData)+'\n\n';
+    if(pronyRes) outText+=fmtPronyResult(pronyRes,signalData)+'\n\n';
+    if(mpRes) outText+=fmtMPMResult(mpRes,signalData);
+  }else if(algo==='peak'&&peakRes) outText=fmtPeakResult(peakRes,signalData);
+  else if(algo==='prony'&&pronyRes) outText=fmtPronyResult(pronyRes,signalData);
+  else if(algo==='mp'&&mpRes) outText=fmtMPMResult(mpRes,signalData);
+  writeOutput(outText);
+
+  // ── Update charts ─────────────────────────────────────────────
+  updateChart(signalData,peakRes,pronyRes,mpRes);
+  syncHandleCanvas();
+  buildMetricsDashboard(peakRes,pronyRes,mpRes,signalData);
+  buildCompareTable(peakRes,pronyRes,mpRes);
+  allMethodsRes={peak:peakRes,prony:pronyRes,mp:mpRes};
+
+  // ── Status bar ────────────────────────────────────────────────
+  const showR2=(pronyRes||mpRes);
+  document.getElementById('st-r2-wrap').style.display=showR2?'':'none';
+  document.getElementById('st-rmse-wrap').style.display=showR2?'':'none';
+  if(showR2){
+    const r2=(mpRes||pronyRes);
+    document.getElementById('st-r2').textContent=r2.rSquared.toFixed(6);
+    document.getElementById('st-rmse').textContent=r2.rmse.toFixed(4);
+  }
+  // Confidence
+  const primary=mpRes||pronyRes;
+  if(primary){
+    const sigArr=Array.from(signalData.detrended);
+    const rms=Math.sqrt(sigArr.reduce((a,b)=>a+b*b)/sigArr.length);
+    const conf=computeConfidence(primary.modes,primary.rSquared,primary.rmse,rms);
+    document.getElementById('st-conf-wrap').style.display='';
+    const el=document.getElementById('st-conf');
+    el.textContent=conf;el.style.color=conf==='HIGH'?'var(--success)':conf==='MEDIUM'?'var(--warn)':'var(--danger)';
+  }
+
+  // Export
+  if(peakRes) setPeakExportData(peakRes);
+  else if(mpRes) setMPExportData(mpRes);
+  else if(pronyRes) setPronyExportData(pronyRes);
+
+  // Run stabilization in background
+  setTimeout(()=>{runStabilizationDiagram();},100);
+}
+
+function debouncedRun(){
+  clearTimeout(debounceId);
+  debounceId=setTimeout(()=>{if(cachedSignal) calculate();},120);
+}
+
+// ════════════════════════════════════════════════════════════════════
+// CHART INTERACTION: PAN / ZOOM / WINDOW HANDLES
+// ════════════════════════════════════════════════════════════════════
+function setChartMode(mode){
+  chartMode=mode;
+  document.getElementById('tb-pan').classList.toggle('active',mode==='pan');
+  document.getElementById('tb-zoom').classList.toggle('active',mode==='zoom');
+  if(!chart) return;
+  chart.options.plugins.zoom.pan.enabled=(mode==='pan'&&!windowModeActive);
+  chart.options.plugins.zoom.zoom.drag=mode==='zoom'?{enabled:true,backgroundColor:'rgba(59,130,246,0.15)',borderColor:'#3b82f6',borderWidth:1}:{enabled:false};
+  chart.update('none');
+}
+function resetZoom(){if(chart){chart.resetZoom();syncHandleCanvas();}}
+
+function toggleWindowMode(){
+  windowModeActive=!windowModeActive;
+  const btn=document.getElementById('tb-window'),hc=document.getElementById('handle-canvas');
+  btn.classList.toggle('active',windowModeActive);hc.classList.toggle('active',windowModeActive);
+  if(chart){chart.options.plugins.zoom.pan.enabled=(!windowModeActive&&chartMode==='pan');chart.update('none');}
+  if(windowModeActive){
+    if(cachedSignal&&manualWindowT0===null){
+      const t=cachedSignal.time;
+      if(cachedMPRes){manualWindowT0=t[cachedMPRes.activeStart];manualWindowT1=t[Math.min(cachedMPRes.activeEnd,t.length-1)];}
+      else if(cachedPronyRes){manualWindowT0=t[cachedPronyRes.activeStart];manualWindowT1=t[Math.min(cachedPronyRes.activeEnd,t.length-1)];}
+      else{manualWindowT0=t[0];manualWindowT1=t[t.length-1];}
+    }
+    syncHandleCanvas();updateWindowStrip();
+  }else syncHandleCanvas();
+}
+function clearWindowSelection(){
+  manualWindowT0=null;manualWindowT1=null;
+  if(windowModeActive) toggleWindowMode();
+  syncHandleCanvas();
+  document.getElementById('prony-window-strip').classList.remove('visible');
+  showToast('Manual window cleared — auto-detection will be used.');
+}
+
+function syncHandleCanvas(){
+  const hc=document.getElementById('handle-canvas'),chartEl=document.getElementById('main-chart');
+  hc.width=chartEl.width;hc.height=chartEl.height;
+  hc.style.width=chartEl.style.width||chartEl.offsetWidth+'px';
+  hc.style.height=chartEl.style.height||chartEl.offsetHeight+'px';
+  const ctx=hc.getContext('2d');ctx.clearRect(0,0,hc.width,hc.height);
+  if(!chart||(!windowModeActive&&manualWindowT0===null)) return;
+  if(manualWindowT0===null||manualWindowT1===null) return;
+  const area=chart.chartArea,xScale=chart.scales.x;
+  const x0=xScale.getPixelForValue(manualWindowT0),x1=xScale.getPixelForValue(manualWindowT1);
+  const top=area.top,bot=area.bottom;
+  ctx.save();ctx.fillStyle=isDark?'rgba(59,130,246,0.10)':'rgba(37,99,235,0.08)';
+  ctx.fillRect(x0,top,x1-x0,bot-top);ctx.restore();
+  drawHandle(ctx,x0,top,bot,'#22d3ee','START',manualWindowT0,true);
+  drawHandle(ctx,x1,top,bot,'#f59e0b','END',manualWindowT1,false);
+}
+function drawHandle(ctx,x,top,bot,color,label,tVal,isLeft){
+  const isH=hdl.hoverHandle===(isLeft?'left':'right'),isD=hdl.dragging===(isLeft?'left':'right');
+  const lw=(isD||isH)?2.5:1.5;
+  ctx.save();ctx.strokeStyle=color;ctx.lineWidth=lw;ctx.setLineDash([]);
+  ctx.beginPath();ctx.moveTo(x,top);ctx.lineTo(x,bot);ctx.stroke();
+  const tw=8,th=14;ctx.fillStyle=color;ctx.beginPath();
+  if(isLeft){ctx.moveTo(x,top+th);ctx.lineTo(x+tw,top);ctx.lineTo(x,top);}
+  else{ctx.moveTo(x,top+th);ctx.lineTo(x-tw,top);ctx.lineTo(x,top);}
+  ctx.closePath();ctx.fill();
+  const tag=tVal.toFixed(3)+'s';ctx.font='bold 9px JetBrains Mono,monospace';
+  const tw2=ctx.measureText(tag).width+8,tx=isLeft?x+2:x-tw2-2;
+  ctx.fillStyle=color;ctx.fillRect(tx,top+16,tw2,14);ctx.fillStyle='#000';ctx.fillText(tag,tx+4,top+26);
+  ctx.restore();
+}
+function hitHandle(pixX){
+  if(!chart||manualWindowT0===null) return null;
+  const xS=chart.scales.x;
+  const x0=xS.getPixelForValue(manualWindowT0),x1=xS.getPixelForValue(manualWindowT1),HIT=12;
+  if(Math.abs(pixX-x0)<HIT) return'left';if(Math.abs(pixX-x1)<HIT) return'right';return null;
+}
+
+(function setupHandleEvents(){
+  window.addEventListener('load',()=>{
+    const hc=document.getElementById('handle-canvas');
+    function getCanvasX(e){const r=hc.getBoundingClientRect(),cx=e.touches?e.touches[0].clientX:e.clientX;return(cx-r.left)*(hc.width/r.width);}
+    function timeFromPixX(px){return chart.scales.x.getValueForPixel(px);}
+    hc.addEventListener('mousemove',e=>{
+      if(!windowModeActive) return;
+      const x=getCanvasX(e);
+      if(hdl.dragging){
+        const t=Math.max(cachedSignal.time[0],Math.min(cachedSignal.time[cachedSignal.time.length-1],timeFromPixX(x)));
+        if(hdl.dragging==='left') manualWindowT0=Math.min(t,manualWindowT1-0.001);
+        else manualWindowT1=Math.max(t,manualWindowT0+0.001);
+        syncHandleCanvas();updateWindowStrip();debouncedRun();
+      }else{
+        const hit=hitHandle(x);hdl.hoverHandle=hit;
+        hc.style.cursor=hit?'ew-resize':(windowModeActive?'crosshair':'default');syncHandleCanvas();
+      }
+    });
+    hc.addEventListener('mousedown',e=>{if(!windowModeActive) return;const x=getCanvasX(e);const hit=hitHandle(x);if(hit){hdl.dragging=hit;e.preventDefault();}});
+    window.addEventListener('mouseup',()=>{if(hdl.dragging){hdl.dragging=null;syncHandleCanvas();if(cachedSignal) debouncedRun();}});
+    // Scroll zoom
+    document.getElementById('chart-container').addEventListener('wheel',e=>{
+      if(!chart) return;e.preventDefault();
+      const f=e.deltaY>0?1.1:0.9;
+      if(e.shiftKey){const{min,max}=chart.scales.x;const mid=(min+max)/2,h=(max-min)/2*f;chart.options.scales.x.min=mid-h;chart.options.scales.x.max=mid+h;}
+      else{const{min,max}=chart.scales.y;const mid=(min+max)/2,h=(max-min)/2*f;chart.options.scales.y.min=mid-h;chart.options.scales.y.max=mid+h;}
+      chart.update('none');syncHandleCanvas();
+    },{passive:false});
+    // Pan
+    let panStart=null;const mc=document.getElementById('main-chart');
+    mc.addEventListener('mousedown',e=>{if(chartMode!=='pan'||windowModeActive) return;panStart={x:e.clientX,y:e.clientY,xMin:chart.scales.x.min,xMax:chart.scales.x.max,yMin:chart.scales.y.min,yMax:chart.scales.y.max};mc.style.cursor='grabbing';});
+    window.addEventListener('mousemove',e=>{if(!panStart) return;const area=chart.chartArea;const xR=panStart.xMax-panStart.xMin,yR=panStart.yMax-panStart.yMin;const dx=e.clientX-panStart.x,dy=e.clientY-panStart.y;const xPx=xR/(area.right-area.left),yPx=yR/(area.bottom-area.top);chart.options.scales.x.min=panStart.xMin-dx*xPx;chart.options.scales.x.max=panStart.xMax-dx*xPx;chart.options.scales.y.min=panStart.yMin+dy*yPx;chart.options.scales.y.max=panStart.yMax+dy*yPx;chart.update('none');syncHandleCanvas();});
+    window.addEventListener('mouseup',()=>{if(panStart){panStart=null;mc.style.cursor='grab';}});
+    mc.style.cursor='grab';
+    initChart();initPSDChart();resizeChart();resizePSD();
+  });
+})();
+
+function updateWindowStrip(){
+  if(manualWindowT0===null||!cachedSignal) return;
+  const t=cachedSignal.time,dt=t.length>1?t[1]-t[0]:0;
+  const dur=manualWindowT1-manualWindowT0,n=dt>0?Math.round(dur/dt):'—';
+  document.getElementById('pw-t0').textContent=manualWindowT0.toFixed(4);
+  document.getElementById('pw-t1').textContent=manualWindowT1.toFixed(4);
+  document.getElementById('pw-n').textContent=n;
+  document.getElementById('pw-dur').textContent=dur.toFixed(4);
+  document.getElementById('prony-window-strip').classList.add('visible');
+}
+
+// ════════════════════════════════════════════════════════════════════
+// THEME TOGGLE
+// ════════════════════════════════════════════════════════════════════
+function toggleTheme(){
+  isDark=!isDark;
+  const root=document.documentElement;
+  document.getElementById('theme-icon').textContent=isDark?'☀️':'🌙';
+  document.getElementById('theme-label').textContent=isDark?'Light':'Dark';
+  root.classList.toggle('light',!isDark);
+  const cc=chartColors();
+  [chart,psdChart].forEach(ch=>{
+    if(!ch) return;
+    ch.options.scales.x.grid.color=cc.grid;ch.options.scales.y.grid.color=cc.grid;
+    ch.options.scales.x.ticks.color=cc.tick;ch.options.scales.y.ticks.color=cc.tick;
+    ch.options.plugins.tooltip.backgroundColor=cc.tt;ch.options.plugins.tooltip.borderColor=cc.ttb;
+    ch.options.plugins.tooltip.titleColor=cc.ttc;ch.options.plugins.tooltip.bodyColor=cc.tts;
+    ch.update('none');
+  });
+  if(chart){
+    chart.data.datasets[0].borderColor=cc.signal;chart.data.datasets[1].borderColor=cc.filtered;
+    chart.data.datasets[2].borderColor=chart.data.datasets[2].backgroundColor=cc.peaks;
+    chart.data.datasets[3].borderColor=cc.pronyFit;chart.data.datasets[4].borderColor=cc.mpFit;
+    chart.data.datasets[5].borderColor=cc.envelope;chart.data.datasets[6].borderColor=cc.hilbert;
+    chart.update('none');
+  }
+  if(stabResults.length) drawStabilizationDiagram();
+}
+
+// ════════════════════════════════════════════════════════════════════
+// RESIZE
+// ════════════════════════════════════════════════════════════════════
+function resizeChart(){const p=document.getElementById('chart-container');document.getElementById('main-chart').style.height=(p.clientHeight-8)+'px';if(chart){chart.resize();syncHandleCanvas();}}
+function resizePSD(){const p=document.getElementById('psd-container');document.getElementById('psd-chart').style.height=(p.clientHeight-8)+'px';if(psdChart) psdChart.resize();}
+window.addEventListener('resize',()=>{resizeChart();resizePSD();if(cachedSignal&&document.getElementById('tab-spectrogram').classList.contains('active')) drawSpectrogram(cachedSignal);if(stabResults.length&&document.getElementById('tab-stabilization').classList.contains('active')) drawStabilizationDiagram();});
+window.addEventListener('load',()=>{initChart();initPSDChart();resizeChart();resizePSD();});
+
+// ════════════════════════════════════════════════════════════════════
+// KEYBOARD SHORTCUT
+// ════════════════════════════════════════════════════════════════════
+document.addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&document.activeElement.tagName!=='TEXTAREA'){e.preventDefault();calculate();}
+  if(e.key==='Escape'&&windowModeActive) toggleWindowMode();
+});
+</script>
+</body>
+</html>
