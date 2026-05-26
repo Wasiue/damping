@@ -258,6 +258,28 @@
     <input type="range" id="sl-energy" min="1" max="20" value="1" oninput="onSlider(this,'val-energy')">
     <span class="slider-val" id="val-energy">1</span>
   </div>
+  <!-- ── New fit-quality parameters ── -->
+  <div style="width:100%;height:1px;background:var(--border);margin:2px 0"></div>
+  <div class="slider-group" title="Bandpass filter applied to signal before Prony decomposition. Set centre frequency and bandwidth to isolate your oscillation band. 0 = off.">
+    <label>BP Centre (Hz)</label>
+    <input type="range" id="sl-bp-centre" min="0" max="5" step="0.05" value="0" oninput="onSliderF(this,'val-bp-centre',2)">
+    <span class="slider-val" id="val-bp-centre">OFF</span>
+  </div>
+  <div class="slider-group" title="Bandpass filter half-bandwidth in Hz. Only active when BP Centre > 0.">
+    <label>BP Width (Hz)</label>
+    <input type="range" id="sl-bp-bw" min="0.05" max="2" step="0.05" value="0.3" oninput="onSliderF(this,'val-bp-bw',2)">
+    <span class="slider-val" id="val-bp-bw">0.30</span>
+  </div>
+  <div class="slider-group" title="SVD truncation threshold (% of largest singular value). Singular values below this are zeroed, reducing noise modes. Higher = more aggressive denoising, fewer spurious modes.">
+    <label>SVD Threshold (%)</label>
+    <input type="range" id="sl-svd" min="0" max="30" step="1" value="0" oninput="onSlider(this,'val-svd')">
+    <span class="slider-val" id="val-svd">0</span>
+  </div>
+  <div class="slider-group" title="Exponential decay weighting applied to the Hankel system rows. Higher value emphasises early (high-SNR) samples and down-weights late noise-floor samples. 0 = uniform (original behaviour).">
+    <label>Row Weighting α</label>
+    <input type="range" id="sl-weight" min="0" max="10" step="0.5" value="0" oninput="onSliderF(this,'val-weight',1)">
+    <span class="slider-val" id="val-weight">0.0</span>
+  </div>
 </div>
 
 <!-- ── Main layout ── -->
@@ -409,6 +431,16 @@ function setStatus(samples, duration, dt, mode) {
 }
 function onSlider(el, valId) {
   document.getElementById(valId).textContent = el.value;
+  debouncedRunProny();
+}
+function onSliderF(el, valId, decimals) {
+  const v = parseFloat(el.value);
+  // Special display for BP centre: 0 = OFF
+  if (valId === 'val-bp-centre') {
+    document.getElementById(valId).textContent = v === 0 ? 'OFF' : v.toFixed(decimals);
+  } else {
+    document.getElementById(valId).textContent = v.toFixed(decimals);
+  }
   debouncedRunProny();
 }
 function toggleProny() {
@@ -850,7 +882,179 @@ function aberthRoots(monic, n) {
   return roots;
 }
 
-function pronyDecompose(timeWindow, sigWindow, numModes) {
+// ════════════════════════════════════════════════════════════════════
+//  PRONY FIT-QUALITY ENHANCEMENTS
+//  1. Butterworth bandpass pre-filter
+//  2. SVD-based Hankel matrix denoising
+//  3. Exponential row weighting for weighted least squares
+// ════════════════════════════════════════════════════════════════════
+
+// ── 1. 4th-order Butterworth bandpass (two biquad sections) ──────────
+// Returns filtered copy of signal. When centreHz===0, returns signal unchanged.
+function butterworthBandpass(signal, dt, centreHz, halfBwHz) {
+  if (centreHz <= 0 || halfBwHz <= 0) return signal;
+  const fs = safeDivScalar(1, dt, 1);
+  const nyq = fs / 2;
+  // Clamp to safe range away from DC and Nyquist
+  const fLo = Math.max(0.01, centreHz - halfBwHz);
+  const fHi = Math.min(nyq * 0.97, centreHz + halfBwHz);
+  if (fLo >= fHi) return signal;
+
+  // Bilinear-transform 2nd-order Butterworth bandpass (single biquad)
+  // We cascade two identical biquads for 4th-order roll-off
+  function makeBPBiquad(fl, fh) {
+    const w0 = 2 * Math.PI * Math.sqrt(fl * fh) / fs;
+    const bw = 2 * Math.PI * (fh - fl) / fs;
+    // Pre-warp
+    const W0 = 2 * Math.tan(w0 / 2);
+    const BW = 2 * Math.tan(bw / 2);
+    const Q  = W0 / BW;
+    // Bilinear transform of s-domain BPF H(s) = (BW·s)/(s²+BW·s+W0²)
+    const b0 = BW / (4 + 2 * BW + W0 * W0);
+    const b1 = 0;
+    const b2 = -b0;
+    const a1 = (2 * W0 * W0 - 8) / (4 + 2 * BW + W0 * W0);
+    const a2 = (4 - 2 * BW + W0 * W0) / (4 + 2 * BW + W0 * W0);
+    return { b0, b1, b2, a1, a2 };
+  }
+
+  function applyBiquad(sig, coef) {
+    const { b0, b1, b2, a1, a2 } = coef;
+    const out = new Float64Array(sig.length);
+    let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
+    for (let i = 0; i < sig.length; i++) {
+      const x0 = isFinite(sig[i]) ? sig[i] : 0;
+      const y0 = b0*x0 + b1*x1 + b2*x2 - a1*y1 - a2*y2;
+      out[i] = isFinite(y0) ? y0 : 0;
+      x2 = x1; x1 = x0; y2 = y1; y1 = out[i];
+    }
+    return out;
+  }
+
+  // Forward + reverse pass (zero-phase) with two cascaded biquads
+  const coef = makeBPBiquad(fLo, fHi);
+  let s = applyBiquad(signal, coef);
+  // Reverse for zero-phase
+  s = s.slice().reverse();
+  s = applyBiquad(s, coef);
+  s = s.reverse();
+  // Second cascade for 4th-order
+  s = applyBiquad(s, coef);
+  s = s.slice().reverse();
+  s = applyBiquad(s, coef);
+  s = s.reverse();
+  return s;
+}
+
+// ── 2. SVD of a matrix via one-sided Jacobi ─────────────────────────
+// Returns { U, S, Vt } where A ≈ U * diag(S) * Vt (thin SVD)
+// Used to denoise the Hankel matrix before AR coefficient extraction.
+function svdJacobi(A) {
+  // A is m×n (m rows, n cols), m >= n expected
+  const m = A.length, n = A[0].length;
+  // Work with V (n×n) and column norms; build Gram matrix G = A^T A
+  const G = Array.from({length:n}, (_,i) => Array.from({length:n}, (_,j) => {
+    let s = 0; for (let k = 0; k < m; k++) s += A[k][i] * A[k][j]; return s;
+  }));
+  // Jacobi eigendecomposition of G = V D V^T
+  const V = Array.from({length:n}, (_,i) => Array.from({length:n}, (_,j) => i===j?1:0));
+  for (let sweep = 0; sweep < 20; sweep++) {
+    let changed = false;
+    for (let p = 0; p < n-1; p++) for (let q = p+1; q < n; q++) {
+      const gpq = G[p][q], gpp = G[p][p], gqq = G[q][q];
+      if (Math.abs(gpq) < 1e-14 * Math.sqrt(gpp * gqq + 1e-300)) continue;
+      changed = true;
+      const theta = 0.5 * Math.atan2(2 * gpq, gpp - gqq);
+      const c = Math.cos(theta), s = Math.sin(theta);
+      // Update G
+      const newGpp = c*c*gpp + 2*s*c*gpq + s*s*gqq;
+      const newGqq = s*s*gpp - 2*s*c*gpq + c*c*gqq;
+      G[p][p] = newGpp; G[q][q] = newGqq; G[p][q] = 0; G[q][p] = 0;
+      for (let r = 0; r < n; r++) {
+        if (r===p||r===q) continue;
+        const grp = G[r][p], grq = G[r][q];
+        G[r][p] = c*grp + s*grq; G[p][r] = G[r][p];
+        G[r][q] = -s*grp + c*grq; G[q][r] = G[r][q];
+      }
+      // Update V
+      for (let r = 0; r < n; r++) {
+        const vrp = V[r][p], vrq = V[r][q];
+        V[r][p] = c*vrp + s*vrq;
+        V[r][q] = -s*vrp + c*vrq;
+      }
+    }
+    if (!changed) break;
+  }
+  // Singular values = sqrt of eigenvalues (diag of G), keep non-negative
+  const S = Array.from({length:n}, (_,i) => Math.sqrt(Math.max(0, G[i][i])));
+  // Sort descending
+  const idx = Array.from({length:n}, (_,i)=>i).sort((a,b)=>S[b]-S[a]);
+  const Ss = idx.map(i=>S[i]);
+  const Vs = idx.map(i=>V.map(row=>row[i]));  // columns of V sorted
+  // U = A V / sigma (thin U, only first n columns)
+  const Us = Array.from({length:m}, ()=>new Array(n).fill(0));
+  for (let j = 0; j < n; j++) {
+    const sv = Ss[j];
+    if (sv < 1e-14) continue;
+    for (let i = 0; i < m; i++) {
+      let s = 0; for (let k = 0; k < n; k++) s += A[i][k] * Vs[k][j];
+      Us[i][j] = s / sv;
+    }
+  }
+  // Return Vt as rows
+  const Vt = Array.from({length:n}, (_,i)=>Array.from({length:n}, (_,j)=>Vs[j][i]));
+  return { U:Us, S:Ss, Vt };
+}
+
+// Denoise Hankel matrix via SVD truncation, return denoised AR solution
+function hankelSVDDenoise(H, tgt, svdThreshPct) {
+  if (svdThreshPct <= 0) return leastSquaresReal(H, tgt);
+  const { U, S, Vt } = svdJacobi(H);
+  const maxS = S[0] || 1;
+  const thresh = (svdThreshPct / 100) * maxS;
+  // Truncated pseudo-inverse: H_pinv * tgt
+  const m = H.length, n = Vt.length;
+  // x = V * diag(1/si) * U^T * tgt  (only for si > thresh)
+  const UTb = new Float64Array(n);
+  for (let j = 0; j < n; j++) {
+    if (S[j] < thresh) continue;
+    let s = 0; for (let i = 0; i < m; i++) s += U[i][j] * (isFinite(tgt[i])?tgt[i]:0);
+    UTb[j] = s / S[j];
+  }
+  const x = new Float64Array(n);
+  for (let i = 0; i < n; i++) {
+    let s = 0; for (let j = 0; j < n; j++) s += Vt[j][i] * UTb[j];
+    x[i] = s;
+  }
+  return x;
+}
+
+// ── 3. Weighted leastSquaresReal (exponential row weights) ───────────
+// alpha > 0 weights row i by exp(-alpha * i/n), emphasising early samples.
+// alpha === 0 → identical to leastSquaresReal (uniform weights).
+function weightedLeastSquaresReal(A, b, alpha) {
+  if (alpha <= 0) return leastSquaresReal(A, b);
+  const n = A.length, m = A[0].length;
+  const W = new Float64Array(n);
+  for (let i = 0; i < n; i++) W[i] = safeExpReal(-alpha * i / Math.max(n - 1, 1));
+  // Build W*A and W*b, then normal equations
+  const AtWA = Array.from({length:m}, () => new Float64Array(m));
+  const AtWb = new Float64Array(m);
+  for (let k = 0; k < n; k++) {
+    const w = W[k];
+    for (let i = 0; i < m; i++) {
+      AtWb[i] += w * A[k][i] * b[k];
+      for (let j = 0; j < m; j++) AtWA[i][j] += w * A[k][i] * A[k][j];
+    }
+  }
+  // Reuse the conditioned Gaussian elimination from leastSquaresReal
+  // by constructing compatible A (sqrt(w)*A) and b (sqrt(w)*b)
+  const Aw = A.map((row, k) => row.map(v => v * Math.sqrt(W[k])));
+  const bw = Array.from(b).map((v, k) => v * Math.sqrt(W[k]));
+  return leastSquaresReal(Aw, bw);
+}
+
+function pronyDecompose(timeWindow, sigWindow, numModes, svdThreshPct, weightAlpha) {
   const n=sigWindow.length, m=numModes;
   if (n<=m) throw new Error(`Window (${n}) must exceed modes (${m}).`);
   const H=[], tgt=[];
@@ -859,7 +1063,15 @@ function pronyDecompose(timeWindow, sigWindow, numModes) {
     for (let j=0;j<m;j++) row.push(sigWindow[i+(m-1-j)]);
     H.push(row); tgt.push(sigWindow[i+m]);
   }
-  const d=leastSquaresReal(H,tgt);
+  // Select AR coefficient solver based on active enhancement
+  let d;
+  if (svdThreshPct > 0) {
+    d = hankelSVDDenoise(H, tgt, svdThreshPct);
+  } else if (weightAlpha > 0) {
+    d = weightedLeastSquaresReal(H, tgt, weightAlpha);
+  } else {
+    d = leastSquaresReal(H, tgt);
+  }
   const charPoly=new Float64Array(m+1);
   charPoly[0]=1;
   for (let i=0;i<m;i++) charPoly[i+1]=-d[i];
@@ -907,8 +1119,15 @@ function timeToSampleIndex(time, t) {
   return Math.max(0, Math.min(time.length-1, lo));
 }
 
-function runProny(signalData, numModes, windowLength, energyFraction) {
+function runProny(signalData, numModes, windowLength, energyFraction, bpCentreHz, bpHalfBwHz, svdThreshPct, weightAlpha) {
   const {time, detrended} = signalData;
+
+  // ── Bandpass pre-filter (new — applied before window selection) ──
+  // When bpCentreHz > 0, filter the detrended signal to isolate the band.
+  const dt = time.length > 1 ? (time[1] - time[0]) : 1;
+  const workSignal = bpCentreHz > 0
+    ? butterworthBandpass(Array.from(detrended), dt, bpCentreHz, bpHalfBwHz)
+    : detrended;
   let iStart, iEnd;
   if (manualWindowT0!==null && manualWindowT1!==null) {
     // User has dragged handles — override auto-detection
@@ -918,15 +1137,17 @@ function runProny(signalData, numModes, windowLength, energyFraction) {
     if (iEnd<=iStart) iEnd=Math.min(iStart+numModes+2, time.length);
     if ((iEnd-iStart)<=numModes+1) iEnd=Math.min(iStart+numModes+2, time.length);
   } else {
-    iStart=findActiveStart(detrended, energyFraction);
+    iStart=findActiveStart(workSignal, energyFraction);
     iEnd=Math.min(iStart+windowLength, time.length);
     if ((iEnd-iStart)<=numModes+1) iEnd=Math.min(iStart+numModes+2, time.length);
   }
   // Clamp to valid array range
   iStart=Math.max(0, Math.min(iStart, time.length-numModes-2));
   iEnd  =Math.max(iStart+numModes+2, Math.min(iEnd, time.length));
-  const timeWin=time.slice(iStart,iEnd), sigWin=detrended.slice(iStart,iEnd);
-  const {amplitudes, exponents}=pronyDecompose(Array.from(timeWin), Array.from(sigWin), numModes);
+  const timeWin=time.slice(iStart,iEnd);
+  // Prony operates on the (possibly bandpass-filtered) signal window
+  const sigWin = workSignal.slice ? workSignal.slice(iStart,iEnd) : Array.from(workSignal).slice(iStart,iEnd);
+  const {amplitudes, exponents}=pronyDecompose(Array.from(timeWin), Array.from(sigWin), numModes, svdThreshPct, weightAlpha);
 
   const t0=timeWin[0];
   const fittedWin=new Float64Array(timeWin.length);
@@ -975,7 +1196,8 @@ function runProny(signalData, numModes, windowLength, energyFraction) {
   const rmse=Math.sqrt(Math.max(0,ssRes/sigWin.length));
 
   return {modes, fittedSignal:fittedFull, rSquared:r2, rmse,
-          activeStart:iStart, activeEnd:iEnd};
+          activeStart:iStart, activeEnd:iEnd,
+          bpActive: bpCentreHz > 0, bpCentreHz, bpHalfBwHz, svdThreshPct, weightAlpha};
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -1201,6 +1423,27 @@ function buildMetricsDashboard(peakRes, pronyRes, signalData) {
     html += card('Modes Found', pronyRes.modes.length, `of ${document.getElementById('sl-modes').value} requested`,
       pronyRes.modes.length===0?'⚠ No valid modes in band':'');
 
+    // ── Enhancement status cards ──────────────────────────────────
+    const bpOn  = pronyRes.bpActive;
+    const svdOn = pronyRes.svdThreshPct > 0;
+    const wOn   = pronyRes.weightAlpha  > 0;
+    html += `<div class="section-title">Active Enhancements</div>`;
+    html += card('Bandpass Pre-filter',
+      bpOn ? `${pronyRes.bpCentreHz.toFixed(2)} ± ${pronyRes.bpHalfBwHz.toFixed(2)} Hz` : 'OFF',
+      bpOn ? 'isolating oscillation band' : 'full band (no filtering)',
+      bpOn ? '4th-order Butterworth, zero-phase' : 'enable via BP Centre slider',
+      bpOn ? 'pass' : '');
+    html += card('SVD Hankel Denoising',
+      svdOn ? `${pronyRes.svdThreshPct}% threshold` : 'OFF',
+      svdOn ? 'noise modes suppressed' : 'standard AR solve',
+      svdOn ? 'Low-energy singular values zeroed' : 'enable via SVD Threshold slider',
+      svdOn ? 'pass' : '');
+    html += card('Exp. Row Weighting',
+      wOn ? `α = ${pronyRes.weightAlpha.toFixed(1)}` : 'OFF',
+      wOn ? 'early samples emphasised' : 'uniform weighting',
+      wOn ? 'Down-weights late noise-floor samples' : 'enable via Row Weighting slider',
+      wOn ? 'pass' : '');
+
     pronyRes.modes.forEach((m,i) => {
       html += card(`Mode ${i+1}`,
         m.frequencyHz.toFixed(4), 'Hz',
@@ -1399,10 +1642,18 @@ function fmtPronyResult(result, numModes, windowLen, signalData) {
   const t0=t[result.activeStart], t1=t[Math.min(result.activeEnd,t.length-1)];
   const activeSamples=result.activeEnd-result.activeStart;
 
+  // Build enhancement flags line
+  const enhFlags = [];
+  if (result.bpActive)       enhFlags.push(`BP-filter: ${result.bpCentreHz.toFixed(2)}±${result.bpHalfBwHz.toFixed(2)} Hz`);
+  if (result.svdThreshPct>0) enhFlags.push(`SVD-thresh: ${result.svdThreshPct}%`);
+  if (result.weightAlpha>0)  enhFlags.push(`Row-weight α=${result.weightAlpha.toFixed(1)}`);
+  const enhLine = enhFlags.length ? `Enhancements:  ${enhFlags.join('   ')}` : 'Enhancements:  none (standard Prony)';
+
   const lines=[
     `Prony Analysis  |  Modes=${numModes}  Window=${windowLen} samples`,
     '='.repeat(64),
     `Active window: [${result.activeStart}–${result.activeEnd}]  (${t0.toFixed(3)}s–${t1.toFixed(3)}s,  ${activeSamples} samples)`,
+    enhLine,
     `R² = ${result.rSquared.toFixed(6)}   RMSE = ${result.rmse.toFixed(4)} MW`,
     '',
   ];
@@ -1540,11 +1791,15 @@ function runPeakAndDisplay() {
 
 function runPronyAndDisplay() {
   if (!cachedSignal) return;
-  const numModes =parseInt(document.getElementById('sl-modes').value)||3;
-  const windowLen=parseInt(document.getElementById('sl-window').value)||237;
-  const energyPct=(parseInt(document.getElementById('sl-energy').value)||1)/100;
+  const numModes  = parseInt(document.getElementById('sl-modes').value)||3;
+  const windowLen = parseInt(document.getElementById('sl-window').value)||237;
+  const energyPct = (parseInt(document.getElementById('sl-energy').value)||1)/100;
+  const bpCentre  = parseFloat(document.getElementById('sl-bp-centre').value)||0;
+  const bpBw      = parseFloat(document.getElementById('sl-bp-bw').value)||0.3;
+  const svdThresh = parseFloat(document.getElementById('sl-svd').value)||0;
+  const wAlpha    = parseFloat(document.getElementById('sl-weight').value)||0;
   let result;
-  try { result=runProny(cachedSignal, numModes, windowLen, energyPct); }
+  try { result=runProny(cachedSignal, numModes, windowLen, energyPct, bpCentre, bpBw, svdThresh, wAlpha); }
   catch(e) { showToast('Prony error: '+e.message); writeOutput('Prony error: '+e.message); return; }
   cachedPronyRes=result; cachedPeakRes=null;
   const diag=computeDiagnostics(null, result, cachedSignal, lastSnrDb);
