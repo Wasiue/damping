@@ -248,38 +248,42 @@
     <input type="range" id="sl-modes" min="1" max="20" value="3" oninput="onSlider(this,'val-modes')">
     <span class="slider-val" id="val-modes">3</span>
   </div>
-  <div class="slider-group">
+  <div class="slider-group" style="flex:1.6;min-width:240px">
     <label>Window (samples)</label>
-    <input type="range" id="sl-window" min="10" max="2000" value="237" oninput="onSlider(this,'val-window')">
+    <input type="range" id="sl-window" min="10" max="2000" value="237" oninput="onSliderWindow(this)">
     <span class="slider-val" id="val-window">237</span>
+    <input type="number" id="num-window" value="237" min="10" max="5000" style="width:58px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-family:var(--mono);font-size:11px;padding:3px 5px;margin-left:4px" oninput="onNumWindow(this)" title="Type exact window size">
   </div>
   <div class="slider-group">
     <label>Energy Threshold (%)</label>
     <input type="range" id="sl-energy" min="1" max="20" value="1" oninput="onSlider(this,'val-energy')">
     <span class="slider-val" id="val-energy">1</span>
   </div>
-  <!-- ── New fit-quality parameters ── -->
-  <div style="width:100%;height:1px;background:var(--border);margin:2px 0"></div>
-  <div class="slider-group" title="Bandpass filter applied to signal before Prony decomposition. Set centre frequency and bandwidth to isolate your oscillation band. 0 = off.">
-    <label>BP Centre (Hz)</label>
-    <input type="range" id="sl-bp-centre" min="0" max="5" step="0.05" value="0" oninput="onSliderF(this,'val-bp-centre',2)">
-    <span class="slider-val" id="val-bp-centre">OFF</span>
+  <div class="sep"></div>
+  <div class="setting-group">
+    <label style="color:var(--muted);font-size:10px;white-space:nowrap">Freq Min (Hz)</label>
+    <input type="number" id="prony-freq-min" value="0.10" step="0.01" min="0" max="10" style="width:62px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-family:var(--mono);font-size:11px;padding:3px 5px" oninput="debouncedRunProny()" title="Minimum frequency for Prony mode filtering">
   </div>
-  <div class="slider-group" title="Bandpass filter half-bandwidth in Hz. Only active when BP Centre > 0.">
-    <label>BP Width (Hz)</label>
-    <input type="range" id="sl-bp-bw" min="0.05" max="2" step="0.05" value="0.3" oninput="onSliderF(this,'val-bp-bw',2)">
-    <span class="slider-val" id="val-bp-bw">0.30</span>
+  <div class="setting-group">
+    <label style="color:var(--muted);font-size:10px;white-space:nowrap">Freq Max (Hz)</label>
+    <input type="number" id="prony-freq-max" value="5.00" step="0.01" min="0" max="50" style="width:62px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-family:var(--mono);font-size:11px;padding:3px 5px" oninput="debouncedRunProny()" title="Maximum frequency for Prony mode filtering">
   </div>
-  <div class="slider-group" title="SVD truncation threshold (% of largest singular value). Singular values below this are zeroed, reducing noise modes. Higher = more aggressive denoising, fewer spurious modes.">
-    <label>SVD Threshold (%)</label>
-    <input type="range" id="sl-svd" min="0" max="30" step="1" value="0" oninput="onSlider(this,'val-svd')">
-    <span class="slider-val" id="val-svd">0</span>
+  <div class="sep"></div>
+  <div class="setting-group">
+    <label class="toggle-label" style="font-size:10px">
+      <input type="checkbox" id="prony-smooth-on" onchange="debouncedRunProny()" style="accent-color:var(--accent);width:13px;height:13px">
+      Prony Smooth
+    </label>
   </div>
-  <div class="slider-group" title="Exponential decay weighting applied to the Hankel system rows. Higher value emphasises early (high-SNR) samples and down-weights late noise-floor samples. 0 = uniform (original behaviour).">
-    <label>Row Weighting α</label>
-    <input type="range" id="sl-weight" min="0" max="10" step="0.5" value="0" oninput="onSliderF(this,'val-weight',1)">
-    <span class="slider-val" id="val-weight">0.0</span>
+  <div class="setting-group">
+    <label style="color:var(--muted);font-size:10px;white-space:nowrap">Win</label>
+    <input type="number" id="prony-smooth-win" value="5" min="3" max="99" step="2" style="width:52px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-family:var(--mono);font-size:11px;padding:3px 5px" oninput="debouncedRunProny()" title="Savitzky-Golay smoothing window applied to signal before Prony decomposition">
   </div>
+  <div class="sep"></div>
+  <label class="toggle-label" style="font-size:10px">
+    <input type="checkbox" id="prony-show-all" onchange="debouncedRunProny()" style="accent-color:var(--accent);width:13px;height:13px">
+    Show All Modes
+  </label>
 </div>
 
 <!-- ── Main layout ── -->
@@ -389,8 +393,11 @@ const SG_POLY_ORDER = 2;
 const MIN_PEAKS = 1, MAX_PEAKS = 16;
 const COMPLIANCE_MIN_DAMPING_RATIO = 0.10;
 const COMPLIANCE_MAX_HALVING_TIME  = 5.00;
-const PRONY_FREQ_MIN_HZ = 0.10;
-const PRONY_FREQ_MAX_HZ = 5.00;
+// These are now read dynamically from UI inputs:
+// PRONY_FREQ_MIN_HZ, PRONY_FREQ_MAX_HZ
+
+function getPronyFreqMin() { return parseFloat(document.getElementById('prony-freq-min').value)||0.10; }
+function getPronyFreqMax() { return parseFloat(document.getElementById('prony-freq-max').value)||5.00; }
 
 // ════════════════════════════════════════════════════════════════════
 //  STATE
@@ -402,7 +409,7 @@ let chart = null, psdChart = null;
 let debounceId = null;
 let isDark = true;
 let lastExportData = null;  // { type, rows, headers }
-let lastSnrDb = null;  // set by updatePSD, consumed by diagnostics
+let parsedColumns = null;   // raw columns from multi-column CSV
 
 // ── Prony window selection state ──────────────────────────────────
 let manualWindowT0 = null;   // user-dragged start time (null = auto)
@@ -426,21 +433,24 @@ function setStatus(samples, duration, dt, mode) {
   document.getElementById('st-samples').textContent  = samples ?? '—';
   document.getElementById('st-duration').textContent = duration!=null ? duration.toFixed(3)+'s' : '—';
   document.getElementById('st-dt').textContent       = dt!=null ? dt.toFixed(5)+'s' : '—';
-  document.getElementById('st-fs').textContent       = dt>1e-10 ? (1/dt).toFixed(2) : '—';
+  document.getElementById('st-fs').textContent       = dt>0 ? (1/dt).toFixed(2) : '—';
   document.getElementById('st-mode').textContent     = mode ?? '—';
 }
 function onSlider(el, valId) {
   document.getElementById(valId).textContent = el.value;
   debouncedRunProny();
 }
-function onSliderF(el, valId, decimals) {
-  const v = parseFloat(el.value);
-  // Special display for BP centre: 0 = OFF
-  if (valId === 'val-bp-centre') {
-    document.getElementById(valId).textContent = v === 0 ? 'OFF' : v.toFixed(decimals);
-  } else {
-    document.getElementById(valId).textContent = v.toFixed(decimals);
-  }
+function onSliderWindow(el) {
+  document.getElementById('val-window').textContent = el.value;
+  document.getElementById('num-window').value = el.value;
+  debouncedRunProny();
+}
+function onNumWindow(el) {
+  const v = Math.max(10, Math.min(5000, parseInt(el.value)||237));
+  document.getElementById('val-window').textContent = v;
+  const slider = document.getElementById('sl-window');
+  // Clamp to slider range if within it, otherwise just show value
+  slider.value = Math.min(v, parseInt(slider.max));
   debouncedRunProny();
 }
 function toggleProny() {
@@ -528,39 +538,28 @@ function savgolFilter(y, w) {
   const out=new Float64Array(n);
   const weights=[];
   for (let i=-hw;i<=hw;i++) {
-    const m=hw;
-    const den=(2*m-1)*(2*m+1)*(2*m+3)/3.0;
-    const num=(3*m*m+3*m-1-5*i*i);
-    // Guard zero denominator (should not occur for valid w, but be safe)
-    weights.push(Math.abs(den)>1e-20 ? num/den : 1/w);
+    const m=hw, num=(3*m*m+3*m-1-5*i*i), den=(2*m-1)*(2*m+1)*(2*m+3)/3.0;
+    weights.push(num/den);
   }
   for (let j=0;j<n;j++) {
     let s=0;
     for (let k=0;k<w;k++) {
       let idx=j-hw+k;
-      // Reflect at boundaries
       if (idx<0) idx=-idx;
       if (idx>=n) idx=2*(n-1)-idx;
       idx=Math.max(0,Math.min(n-1,idx));
-      const v=isFinite(y[idx])?y[idx]:0;
-      s+=weights[k]*v;
+      s+=weights[k]*y[idx];
     }
-    out[j]=isFinite(s)?s:y[j];  // fallback to raw if filter output is bad
+    out[j]=s;
   }
   return out;
 }
 
 function checkUniformSampling(time) {
-  if (time.length < 2) return { uniform:true, dt:0 };
   if (time.length < 3) return { uniform:true, dt:time[1]-time[0] };
   const dts = [];
-  for (let i=1;i<time.length;i++) {
-    const d=time[i]-time[i-1];
-    if(isFinite(d)&&d>0) dts.push(d);
-  }
-  if (!dts.length) return { uniform:true, dt:0 };
+  for (let i=1;i<time.length;i++) dts.push(time[i]-time[i-1]);
   const dtMean = dts.reduce((a,b)=>a+b,0)/dts.length;
-  if (dtMean<=0) return { uniform:true, dt:0 };
   const dtMax  = Math.max(...dts), dtMin = Math.min(...dts);
   const uniform = (dtMax-dtMin)/dtMean < 0.01;  // <1% variation
   return { uniform, dt:dtMean, dtMin, dtMax };
@@ -605,35 +604,15 @@ function fitExponentialEnvelope(peakTimes, peakValues) {
   const pts = peakTimes.map((t,i)=>({t,v:peakValues[i]})).filter(p=>p.v>0);
   if (pts.length<2) return null;
   // Linear regression: ln(v) = ln(A) - σ*t
-  const lny = pts.map(p=>safeLog(p.v));
+  const lny = pts.map(p=>Math.log(p.v));
   const t   = pts.map(p=>p.t);
   const n2  = pts.length;
-
-  // Outlier rejection: remove points whose ln(v) residual > 2.5 * IQR
-  // (computed on the raw lny values before regression, as a pre-filter)
-  // This does NOT change nominal results when signal is clean.
-  const sortedLny=[...lny].sort((a,b)=>a-b);
-  const q1=sortedLny[Math.floor(n2*0.25)], q3=sortedLny[Math.floor(n2*0.75)];
-  const iqr=q3-q1;
-  const lnyLo=q1-2.5*iqr, lnyHi=q3+2.5*iqr;
-  const filtPts = n2>=5 ? pts.filter((_,i)=>lny[i]>=lnyLo&&lny[i]<=lnyHi) : pts;
-  const fPts = filtPts.length>=2 ? filtPts : pts;  // fall back to all if too few survive
-
-  const flny=fPts.map(p=>safeLog(p.v));
-  const ft  =fPts.map(p=>p.t);
-  const fn  =fPts.length;
-  const sumT=ft.reduce((a,b)=>a+b,0),  sumY=flny.reduce((a,b)=>a+b,0);
-  const sumTY=ft.reduce((a,v,i)=>a+v*flny[i],0);
-  const sumT2=ft.reduce((a,v)=>a+v*v,0);
-  // Guard denominator to avoid divide-by-zero when all times are identical
-  const den = fn*sumT2 - sumT*sumT;
-  if (Math.abs(den) < 1e-20) return null;
-  const slope=safeDivScalar(fn*sumTY-sumT*sumY, den, 0);
-  const intercept=safeDivScalar(sumY-slope*sumT, fn, 0);
-  const A=safeExpReal(intercept);
-  const sigma=-slope;
-  // Sanity: reject physically nonsensical result (negative amplitude or huge sigma)
-  if (!isFinite(A)||A<=0||!isFinite(sigma)) return null;
+  const sumT=t.reduce((a,b)=>a+b,0), sumY=lny.reduce((a,b)=>a+b,0);
+  const sumTY=t.reduce((a,v,i)=>a+v*lny[i],0);
+  const sumT2=t.reduce((a,v)=>a+v*v,0);
+  const slope=(n2*sumTY-sumT*sumY)/(n2*sumT2-sumT*sumT);
+  const intercept=(sumY-slope*sumT)/n2;
+  const A=Math.exp(intercept), sigma=-slope;
   return {A, sigma};
 }
 
@@ -663,16 +642,11 @@ function runPeakEnvelope(signalData, numPeaks, prominence) {
     const y1=peakValues[i], y2=peakValues[i+1];
     const t1=peakTimes[i],  t2=peakTimes[i+1];
     if (y1<=0||y2<=0) continue;
-    const dt=t2-t1;
-    if (dt<=0) continue;  // guard against non-monotone or duplicate times
-    const delta=safeLog(y1/y2);
-    const sigma=safeDivScalar(delta, dt, 0);
-    // Guard zeta denominator
-    const zetaDen=Math.sqrt(4*Math.PI**2+delta**2);
-    const zeta=zetaDen>1e-20?delta/zetaDen:0;
+    const delta=Math.log(y1/y2), dt=t2-t1;
+    const sigma=delta/dt;
+    const zeta=delta/Math.sqrt(4*Math.PI**2+delta**2);
     const halfT=sigma>0?Math.LN2/sigma:Infinity;
-    const freqHz=safeDivScalar(1.0, dt, 0);
-    if(!isFinite(sigma)||!isFinite(zeta)||!isFinite(freqHz)) continue;
+    const freqHz=1.0/dt;
     pairs.push({pairIndex:i+1,time1:t1,peak1:y1,time2:t2,peak2:y2,
       logDecrement:delta,sigma,dampingRatio:zeta,frequencyHz:freqHz,halvingTime:halfT});
     zetaList.push(zeta); sigmaList.push(sigma); halfList.push(halfT); freqList.push(freqHz);
@@ -733,22 +707,17 @@ function computePSD(signal, dt) {
   const re=new Float64Array(N), im=new Float64Array(N);
   let wSum=0;
   for (let i=0;i<Math.min(signal.length,N);i++) {
-    const w=0.5*(1-Math.cos(2*Math.PI*i/Math.max(N-1,1)));
-    // Guard against NaN in signal values
-    const sv=isFinite(signal[i])?signal[i]:0;
-    re[i]=sv*w; wSum+=w*w;
+    const w=0.5*(1-Math.cos(2*Math.PI*i/(N-1)));
+    re[i]=signal[i]*w; wSum+=w*w;
   }
-  if(wSum<1e-30) wSum=1e-30;  // prevent division by zero
   fft(re,im);
   // One-sided PSD: |X|²/(fs * N * sum(w²))
-  const fs=safeDivScalar(1,dt,1), psd=[], freqs=[];
+  const fs=1/dt, psd=[], freqs=[];
   const nHalf=Math.floor(N/2)+1;
-  const norm=fs*N*wSum;
   for (let k=0;k<nHalf;k++) {
     let mag2=re[k]*re[k]+im[k]*im[k];
     if (k>0&&k<nHalf-1) mag2*=2;  // fold negative freqs
-    const psdVal=safeDivScalar(mag2, norm, 0);
-    psd.push(isFinite(psdVal)?psdVal:0);
+    psd.push(mag2/(fs*N*wSum));
     freqs.push(k*fs/N);
   }
   return {freqs, psd, fs, N};
@@ -757,39 +726,22 @@ function computePSD(signal, dt) {
 function estimateSNR(psd, freqs, domIdx) {
   // Simple SNR: peak power vs mean of everything else
   const peakPow=psd[domIdx];
-  if(!isFinite(peakPow)||peakPow<=0) return null;
-  const noise=psd.filter((v,i)=>Math.abs(i-domIdx)>3&&isFinite(v)&&v>0);
+  const noise=psd.filter((_,i)=>Math.abs(i-domIdx)>3);
   if (!noise.length) return null;
   const noiseMean=noise.reduce((a,b)=>a+b,0)/noise.length;
-  if(!isFinite(noiseMean)||noiseMean<=0) return null;
-  return 10*Math.log10(peakPow/noiseMean);
+  return 10*Math.log10(peakPow/(noiseMean||1e-30));
 }
 
 // ════════════════════════════════════════════════════════════════════
 //  PRONY (same algorithm as before, no changes)
 // ════════════════════════════════════════════════════════════════════
-// ── Safe numeric helpers ─────────────────────────────────────────────
-// safeLog: clamps argument away from zero to prevent log(0) = -Infinity
-function safeLog(x) { return x > 1e-300 ? Math.log(x) : Math.log(1e-300); }
-// safeExp: clamps exponent to prevent Infinity/0 overflow
-function safeExpReal(x) { return Math.exp(Math.max(-700, Math.min(700, x))); }
-// safeDivScalar: prevents division by zero for real scalars
-function safeDivScalar(num, den, fallback=0) { return Math.abs(den) > 1e-300 ? num/den : fallback; }
-
 const C = {
   add:(a,b)=>({re:a.re+b.re,im:a.im+b.im}),
   sub:(a,b)=>({re:a.re-b.re,im:a.im-b.im}),
   mul:(a,b)=>({re:a.re*b.re-a.im*b.im,im:a.re*b.im+a.im*b.re}),
-  // Guarded complex division: avoids NaN when denominator magnitude is tiny
-  div:(a,b)=>{
-    const d=b.re*b.re+b.im*b.im;
-    if(d<1e-300) return {re:0,im:0};
-    return{re:(a.re*b.re+a.im*b.im)/d,im:(a.im*b.re-a.re*b.im)/d};
-  },
-  // Guarded complex exp: clamps real part to prevent Infinity
-  exp:(a)=>{const e=safeExpReal(a.re);return{re:e*Math.cos(a.im),im:e*Math.sin(a.im)}},
-  // Guarded complex log: handles near-zero modulus safely
-  log:(a)=>{const r=Math.sqrt(a.re*a.re+a.im*a.im);return{re:safeLog(r),im:Math.atan2(a.im,a.re)}},
+  div:(a,b)=>{const d=b.re*b.re+b.im*b.im;return{re:(a.re*b.re+a.im*b.im)/d,im:(a.im*b.re-a.re*b.im)/d}},
+  exp:(a)=>{const e=Math.exp(a.re);return{re:e*Math.cos(a.im),im:e*Math.sin(a.im)}},
+  log:(a)=>{const r=Math.sqrt(a.re*a.re+a.im*a.im);return{re:r>1e-300?Math.log(r):-690,im:Math.atan2(a.im,a.re)}},
   abs:(a)=>Math.sqrt(a.re*a.re+a.im*a.im),
   scale:(a,s)=>({re:a.re*s,im:a.im*s}),
 };
@@ -800,26 +752,16 @@ function leastSquaresReal(A, b) {
   const Atb=new Float64Array(m);
   for (let i=0;i<m;i++) for (let j=0;j<m;j++) for (let k=0;k<n;k++) AtA[i][j]+=A[k][i]*A[k][j];
   for (let i=0;i<m;i++) for (let k=0;k<n;k++) Atb[i]+=A[k][i]*b[k];
-  // Scale each row by its diagonal for better numerical conditioning
-  const scale=new Float64Array(m);
-  for (let i=0;i<m;i++) scale[i]=AtA[i][i]>1e-300?1/Math.sqrt(AtA[i][i]):1;
-  const aug=AtA.map((row,i)=>[...row.map((v,j)=>v*scale[i]*scale[j]),Atb[i]*scale[i]]);
+  const aug=AtA.map((row,i)=>[...row,Atb[i]]);
   for (let col=0;col<m;col++) {
     let maxR=col; for (let r=col+1;r<m;r++) if (Math.abs(aug[r][col])>Math.abs(aug[maxR][col])) maxR=r;
     [aug[col],aug[maxR]]=[aug[maxR],aug[col]];
     const piv=aug[col][col];
-    if (Math.abs(piv)<1e-12) continue;  // stricter pivot threshold
+    if (Math.abs(piv)<1e-14) continue;
     for (let r=col+1;r<m;r++) {const f=aug[r][col]/piv;for (let c=col;c<=m;c++) aug[r][c]-=f*aug[col][c];}
   }
   const x=new Float64Array(m);
-  for (let i=m-1;i>=0;i--) {
-    x[i]=aug[i][m];
-    for (let j=i+1;j<m;j++) x[i]-=aug[i][j]*x[j];
-    // Guard against near-singular diagonal; result stays 0 (no oscillation contribution)
-    x[i]=Math.abs(aug[i][i])>1e-12 ? x[i]/aug[i][i] : 0;
-  }
-  // Undo row scaling
-  for (let i=0;i<m;i++) x[i]*=scale[i];
+  for (let i=m-1;i>=0;i--) {x[i]=aug[i][m];for (let j=i+1;j<m;j++) x[i]-=aug[i][j]*x[j];x[i]/=aug[i][i]||1e-15;}
   return x;
 }
 
@@ -845,7 +787,7 @@ function leastSquaresComplex(vandermonde, signal) {
 function aberthRoots(monic, n) {
   const roots=[];
   for (let k=0;k<n;k++) {
-    const a=2*Math.PI*k/Math.max(n,1)+0.1;
+    const a=2*Math.PI*k/n+0.1;
     roots.push({re:Math.cos(a)*0.9,im:Math.sin(a)*0.9});
   }
   function evalPoly(z) {
@@ -870,191 +812,13 @@ function aberthRoots(monic, n) {
       }
       const denom=C.sub(C.div(fp,fz),sum);
       if (C.abs(denom)<1e-15) continue;
-      const step=C.div({re:1,im:0},denom);
-      // Discard non-finite steps (indicates numerical breakdown)
-      if(!isFinite(step.re)||!isFinite(step.im)) continue;
-      roots[k]=C.sub(roots[k],step);
-      // Clamp root magnitude to prevent spiral divergence on noisy inputs
-      const rm=C.abs(roots[k]);
-      if(rm>10) roots[k]=C.scale(roots[k],10/rm);
+      roots[k]=C.sub(roots[k],C.div({re:1,im:0},denom));
     }
   }
   return roots;
 }
 
-// ════════════════════════════════════════════════════════════════════
-//  PRONY FIT-QUALITY ENHANCEMENTS
-//  1. Butterworth bandpass pre-filter
-//  2. SVD-based Hankel matrix denoising
-//  3. Exponential row weighting for weighted least squares
-// ════════════════════════════════════════════════════════════════════
-
-// ── 1. 4th-order Butterworth bandpass (two biquad sections) ──────────
-// Returns filtered copy of signal. When centreHz===0, returns signal unchanged.
-function butterworthBandpass(signal, dt, centreHz, halfBwHz) {
-  if (centreHz <= 0 || halfBwHz <= 0) return signal;
-  const fs = safeDivScalar(1, dt, 1);
-  const nyq = fs / 2;
-  // Clamp to safe range away from DC and Nyquist
-  const fLo = Math.max(0.01, centreHz - halfBwHz);
-  const fHi = Math.min(nyq * 0.97, centreHz + halfBwHz);
-  if (fLo >= fHi) return signal;
-
-  // Bilinear-transform 2nd-order Butterworth bandpass (single biquad)
-  // We cascade two identical biquads for 4th-order roll-off
-  function makeBPBiquad(fl, fh) {
-    const w0 = 2 * Math.PI * Math.sqrt(fl * fh) / fs;
-    const bw = 2 * Math.PI * (fh - fl) / fs;
-    // Pre-warp
-    const W0 = 2 * Math.tan(w0 / 2);
-    const BW = 2 * Math.tan(bw / 2);
-    const Q  = W0 / BW;
-    // Bilinear transform of s-domain BPF H(s) = (BW·s)/(s²+BW·s+W0²)
-    const b0 = BW / (4 + 2 * BW + W0 * W0);
-    const b1 = 0;
-    const b2 = -b0;
-    const a1 = (2 * W0 * W0 - 8) / (4 + 2 * BW + W0 * W0);
-    const a2 = (4 - 2 * BW + W0 * W0) / (4 + 2 * BW + W0 * W0);
-    return { b0, b1, b2, a1, a2 };
-  }
-
-  function applyBiquad(sig, coef) {
-    const { b0, b1, b2, a1, a2 } = coef;
-    const out = new Float64Array(sig.length);
-    let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
-    for (let i = 0; i < sig.length; i++) {
-      const x0 = isFinite(sig[i]) ? sig[i] : 0;
-      const y0 = b0*x0 + b1*x1 + b2*x2 - a1*y1 - a2*y2;
-      out[i] = isFinite(y0) ? y0 : 0;
-      x2 = x1; x1 = x0; y2 = y1; y1 = out[i];
-    }
-    return out;
-  }
-
-  // Forward + reverse pass (zero-phase) with two cascaded biquads
-  const coef = makeBPBiquad(fLo, fHi);
-  let s = applyBiquad(signal, coef);
-  // Reverse for zero-phase
-  s = s.slice().reverse();
-  s = applyBiquad(s, coef);
-  s = s.reverse();
-  // Second cascade for 4th-order
-  s = applyBiquad(s, coef);
-  s = s.slice().reverse();
-  s = applyBiquad(s, coef);
-  s = s.reverse();
-  return s;
-}
-
-// ── 2. SVD of a matrix via one-sided Jacobi ─────────────────────────
-// Returns { U, S, Vt } where A ≈ U * diag(S) * Vt (thin SVD)
-// Used to denoise the Hankel matrix before AR coefficient extraction.
-function svdJacobi(A) {
-  // A is m×n (m rows, n cols), m >= n expected
-  const m = A.length, n = A[0].length;
-  // Work with V (n×n) and column norms; build Gram matrix G = A^T A
-  const G = Array.from({length:n}, (_,i) => Array.from({length:n}, (_,j) => {
-    let s = 0; for (let k = 0; k < m; k++) s += A[k][i] * A[k][j]; return s;
-  }));
-  // Jacobi eigendecomposition of G = V D V^T
-  const V = Array.from({length:n}, (_,i) => Array.from({length:n}, (_,j) => i===j?1:0));
-  for (let sweep = 0; sweep < 20; sweep++) {
-    let changed = false;
-    for (let p = 0; p < n-1; p++) for (let q = p+1; q < n; q++) {
-      const gpq = G[p][q], gpp = G[p][p], gqq = G[q][q];
-      if (Math.abs(gpq) < 1e-14 * Math.sqrt(gpp * gqq + 1e-300)) continue;
-      changed = true;
-      const theta = 0.5 * Math.atan2(2 * gpq, gpp - gqq);
-      const c = Math.cos(theta), s = Math.sin(theta);
-      // Update G
-      const newGpp = c*c*gpp + 2*s*c*gpq + s*s*gqq;
-      const newGqq = s*s*gpp - 2*s*c*gpq + c*c*gqq;
-      G[p][p] = newGpp; G[q][q] = newGqq; G[p][q] = 0; G[q][p] = 0;
-      for (let r = 0; r < n; r++) {
-        if (r===p||r===q) continue;
-        const grp = G[r][p], grq = G[r][q];
-        G[r][p] = c*grp + s*grq; G[p][r] = G[r][p];
-        G[r][q] = -s*grp + c*grq; G[q][r] = G[r][q];
-      }
-      // Update V
-      for (let r = 0; r < n; r++) {
-        const vrp = V[r][p], vrq = V[r][q];
-        V[r][p] = c*vrp + s*vrq;
-        V[r][q] = -s*vrp + c*vrq;
-      }
-    }
-    if (!changed) break;
-  }
-  // Singular values = sqrt of eigenvalues (diag of G), keep non-negative
-  const S = Array.from({length:n}, (_,i) => Math.sqrt(Math.max(0, G[i][i])));
-  // Sort descending
-  const idx = Array.from({length:n}, (_,i)=>i).sort((a,b)=>S[b]-S[a]);
-  const Ss = idx.map(i=>S[i]);
-  const Vs = idx.map(i=>V.map(row=>row[i]));  // columns of V sorted
-  // U = A V / sigma (thin U, only first n columns)
-  const Us = Array.from({length:m}, ()=>new Array(n).fill(0));
-  for (let j = 0; j < n; j++) {
-    const sv = Ss[j];
-    if (sv < 1e-14) continue;
-    for (let i = 0; i < m; i++) {
-      let s = 0; for (let k = 0; k < n; k++) s += A[i][k] * Vs[k][j];
-      Us[i][j] = s / sv;
-    }
-  }
-  // Return Vt as rows
-  const Vt = Array.from({length:n}, (_,i)=>Array.from({length:n}, (_,j)=>Vs[j][i]));
-  return { U:Us, S:Ss, Vt };
-}
-
-// Denoise Hankel matrix via SVD truncation, return denoised AR solution
-function hankelSVDDenoise(H, tgt, svdThreshPct) {
-  if (svdThreshPct <= 0) return leastSquaresReal(H, tgt);
-  const { U, S, Vt } = svdJacobi(H);
-  const maxS = S[0] || 1;
-  const thresh = (svdThreshPct / 100) * maxS;
-  // Truncated pseudo-inverse: H_pinv * tgt
-  const m = H.length, n = Vt.length;
-  // x = V * diag(1/si) * U^T * tgt  (only for si > thresh)
-  const UTb = new Float64Array(n);
-  for (let j = 0; j < n; j++) {
-    if (S[j] < thresh) continue;
-    let s = 0; for (let i = 0; i < m; i++) s += U[i][j] * (isFinite(tgt[i])?tgt[i]:0);
-    UTb[j] = s / S[j];
-  }
-  const x = new Float64Array(n);
-  for (let i = 0; i < n; i++) {
-    let s = 0; for (let j = 0; j < n; j++) s += Vt[j][i] * UTb[j];
-    x[i] = s;
-  }
-  return x;
-}
-
-// ── 3. Weighted leastSquaresReal (exponential row weights) ───────────
-// alpha > 0 weights row i by exp(-alpha * i/n), emphasising early samples.
-// alpha === 0 → identical to leastSquaresReal (uniform weights).
-function weightedLeastSquaresReal(A, b, alpha) {
-  if (alpha <= 0) return leastSquaresReal(A, b);
-  const n = A.length, m = A[0].length;
-  const W = new Float64Array(n);
-  for (let i = 0; i < n; i++) W[i] = safeExpReal(-alpha * i / Math.max(n - 1, 1));
-  // Build W*A and W*b, then normal equations
-  const AtWA = Array.from({length:m}, () => new Float64Array(m));
-  const AtWb = new Float64Array(m);
-  for (let k = 0; k < n; k++) {
-    const w = W[k];
-    for (let i = 0; i < m; i++) {
-      AtWb[i] += w * A[k][i] * b[k];
-      for (let j = 0; j < m; j++) AtWA[i][j] += w * A[k][i] * A[k][j];
-    }
-  }
-  // Reuse the conditioned Gaussian elimination from leastSquaresReal
-  // by constructing compatible A (sqrt(w)*A) and b (sqrt(w)*b)
-  const Aw = A.map((row, k) => row.map(v => v * Math.sqrt(W[k])));
-  const bw = Array.from(b).map((v, k) => v * Math.sqrt(W[k]));
-  return leastSquaresReal(Aw, bw);
-}
-
-function pronyDecompose(timeWindow, sigWindow, numModes, svdThreshPct, weightAlpha) {
+function pronyDecompose(timeWindow, sigWindow, numModes) {
   const n=sigWindow.length, m=numModes;
   if (n<=m) throw new Error(`Window (${n}) must exceed modes (${m}).`);
   const H=[], tgt=[];
@@ -1063,40 +827,22 @@ function pronyDecompose(timeWindow, sigWindow, numModes, svdThreshPct, weightAlp
     for (let j=0;j<m;j++) row.push(sigWindow[i+(m-1-j)]);
     H.push(row); tgt.push(sigWindow[i+m]);
   }
-  // Select AR coefficient solver based on active enhancement
-  let d;
-  if (svdThreshPct > 0) {
-    d = hankelSVDDenoise(H, tgt, svdThreshPct);
-  } else if (weightAlpha > 0) {
-    d = weightedLeastSquaresReal(H, tgt, weightAlpha);
-  } else {
-    d = leastSquaresReal(H, tgt);
-  }
+  const d=leastSquaresReal(H,tgt);
   const charPoly=new Float64Array(m+1);
   charPoly[0]=1;
   for (let i=0;i<m;i++) charPoly[i+1]=-d[i];
   const roots=aberthRoots(Array.from(charPoly), m);
-  const dt=timeWindow.length>1?(timeWindow[1]-timeWindow[0]):1;
+  const dt=timeWindow[1]-timeWindow[0];
   const exponents=roots.map(z=>{
     const absZ=C.abs(z);
-    // Clamp near-zero magnitude roots to a tiny positive value before log
-    const safeZ = absZ > 1e-12 ? z : {re:1e-12, im:0};
-    const logZ = C.log(safeZ);
-    // Clamp real part of exponent: excessive damping rates are non-physical
-    const clampedRe = Math.max(-200, Math.min(200, logZ.re));
-    return C.scale({re:clampedRe, im:logZ.im}, safeDivScalar(1, dt, 0));
+    return C.scale(C.log(absZ>1e-12?z:{re:1e-12,im:0}),1/dt);
   });
   const V=[];
   for (let i=0;i<n;i++) {
     V.push(roots.map(r=>{
       const safeR=C.abs(r)>1e-12?r:{re:1e-12,im:0};
-      // Iterative power: r^i via repeated multiply with early overflow guard
       let val={re:1,im:0};
-      for (let k=0;k<i;k++) {
-        val=C.mul(val,safeR);
-        // Guard against runaway growth (non-physical, numerical noise)
-        if (C.abs(val)>1e150) { val={re:0,im:0}; break; }
-      }
+      for (let k=0;k<i;k++) val=C.mul(val,safeR);
       return val;
     }));
   }
@@ -1119,35 +865,33 @@ function timeToSampleIndex(time, t) {
   return Math.max(0, Math.min(time.length-1, lo));
 }
 
-function runProny(signalData, numModes, windowLength, energyFraction, bpCentreHz, bpHalfBwHz, svdThreshPct, weightAlpha) {
+function runProny(signalData, numModes, windowLength, energyFraction) {
   const {time, detrended} = signalData;
 
-  // ── Bandpass pre-filter (new — applied before window selection) ──
-  // When bpCentreHz > 0, filter the detrended signal to isolate the band.
-  const dt = time.length > 1 ? (time[1] - time[0]) : 1;
-  const workSignal = bpCentreHz > 0
-    ? butterworthBandpass(Array.from(detrended), dt, bpCentreHz, bpHalfBwHz)
-    : detrended;
+  // Optional Prony-specific smoothing
+  const pronySmooth = document.getElementById('prony-smooth-on').checked;
+  const pronySmoothWin = parseInt(document.getElementById('prony-smooth-win').value)||5;
+  let workingSignal = detrended;
+  if (pronySmooth) {
+    let sw = Math.max(pronySmoothWin, SG_POLY_ORDER+1);
+    if (sw%2===0) sw++;
+    const maxW = workingSignal.length%2!==0 ? workingSignal.length : workingSignal.length-1;
+    sw = Math.min(sw, maxW);
+    workingSignal = savgolFilter(detrended, sw);
+  }
+
   let iStart, iEnd;
   if (manualWindowT0!==null && manualWindowT1!==null) {
-    // User has dragged handles — override auto-detection
     iStart = timeToSampleIndex(time, manualWindowT0);
     iEnd   = timeToSampleIndex(time, manualWindowT1);
-    // Safety: ensure ordering and minimum viable window for the requested modes
     if (iEnd<=iStart) iEnd=Math.min(iStart+numModes+2, time.length);
-    if ((iEnd-iStart)<=numModes+1) iEnd=Math.min(iStart+numModes+2, time.length);
   } else {
-    iStart=findActiveStart(workSignal, energyFraction);
+    iStart=findActiveStart(workingSignal, energyFraction);
     iEnd=Math.min(iStart+windowLength, time.length);
-    if ((iEnd-iStart)<=numModes+1) iEnd=Math.min(iStart+numModes+2, time.length);
+    if ((iEnd-iStart)<=numModes) iEnd=Math.min(iStart+numModes+2, time.length);
   }
-  // Clamp to valid array range
-  iStart=Math.max(0, Math.min(iStart, time.length-numModes-2));
-  iEnd  =Math.max(iStart+numModes+2, Math.min(iEnd, time.length));
-  const timeWin=time.slice(iStart,iEnd);
-  // Prony operates on the (possibly bandpass-filtered) signal window
-  const sigWin = workSignal.slice ? workSignal.slice(iStart,iEnd) : Array.from(workSignal).slice(iStart,iEnd);
-  const {amplitudes, exponents}=pronyDecompose(Array.from(timeWin), Array.from(sigWin), numModes, svdThreshPct, weightAlpha);
+  const timeWin=time.slice(iStart,iEnd), sigWin=workingSignal.slice(iStart,iEnd);
+  const {amplitudes, exponents}=pronyDecompose(Array.from(timeWin), Array.from(sigWin), numModes);
 
   const t0=timeWin[0];
   const fittedWin=new Float64Array(timeWin.length);
@@ -1155,49 +899,50 @@ function runProny(signalData, numModes, windowLength, energyFraction, bpCentreHz
     const tRel=timeWin[i]-t0; let sum=0;
     for (let k=0;k<amplitudes.length;k++) {
       const b=exponents[k], ex=C.exp({re:b.re*tRel,im:b.im*tRel});
-      const term=amplitudes[k].re*ex.re-amplitudes[k].im*ex.im;
-      if(isFinite(term)) sum+=term;
+      sum+=amplitudes[k].re*ex.re-amplitudes[k].im*ex.im;
     }
-    fittedWin[i]=isFinite(sum)?sum:0;
+    fittedWin[i]=sum;
   }
   const fittedFull=new Float64Array(time.length);
   for (let i=0;i<timeWin.length;i++) fittedFull[iStart+i]=fittedWin[i];
 
-  const modes=[];
+  const freqMin = getPronyFreqMin();
+  const freqMax = getPronyFreqMax();
+
+  // Build ALL modes (unfiltered) for display
+  const allModes=[];
+  const seenAngFreq = new Set();
   for (let k=0;k<amplitudes.length;k++) {
     const amp=amplitudes[k], exp=exponents[k];
     const dampingRate=-exp.re, angularFreq=exp.im;
+    if (angularFreq<0) continue; // skip conjugate
     const freqHz=Math.abs(angularFreq)/(2*Math.PI);
-    if (angularFreq<0) continue;
-    if (freqHz<PRONY_FREQ_MIN_HZ||freqHz>PRONY_FREQ_MAX_HZ) continue;
-    if (dampingRate<=0) continue;
-    if (!isFinite(dampingRate)||!isFinite(freqHz)) continue;  // guard NaN/Inf poles
     const physAmp=2*C.abs(amp);
-    const omegaN=Math.sqrt(dampingRate*dampingRate+angularFreq*angularFreq);
-    const zeta=omegaN>1e-10?dampingRate/omegaN:0;
-    const period=freqHz>1e-10?1/freqHz:Infinity;
-    const unstable=zeta>1.0;  // overdamped flag
-    if(!isFinite(zeta)||zeta<0) continue;  // discard numerically corrupt poles
-    modes.push({index:k+1, amplitude:physAmp, frequencyHz:freqHz, period,
-                dampingRate, dampingRatio:zeta, unstable});
+    const zeta=Math.sqrt(dampingRate**2+angularFreq**2)>0
+      ? dampingRate/Math.sqrt(dampingRate**2+angularFreq**2) : 0;
+    const period=freqHz>0?1/freqHz:Infinity;
+    const unstable=zeta>1.0;
+    const inBand = freqHz>=freqMin && freqHz<=freqMax;
+    const isDamped = dampingRate>0;
+    allModes.push({index:k+1, amplitude:physAmp, frequencyHz:freqHz, period,
+                   dampingRate, dampingRatio:zeta, unstable, inBand, isDamped});
   }
-  modes.sort((a,b)=>b.amplitude-a.amplitude);
+  allModes.sort((a,b)=>b.amplitude-a.amplitude);
 
-  // R² and RMSE over active window — guard against degenerate cases
+  // Dominant modes: in-band + positive damping
+  const modes = allModes.filter(m=>m.inBand && m.isDamped);
+
+  // R² and RMSE over active window
   let sigMean=0; for (const v of sigWin) sigMean+=v; sigMean/=sigWin.length;
   let ssRes=0, ssTot=0;
   for (let i=0;i<sigWin.length;i++) {
-    const res=sigWin[i]-fittedWin[i];
-    const dev=sigWin[i]-sigMean;
-    if(isFinite(res)) ssRes+=res*res;
-    if(isFinite(dev)) ssTot+=dev*dev;
+    ssRes+=(sigWin[i]-fittedWin[i])**2; ssTot+=(sigWin[i]-sigMean)**2;
   }
-  const r2=ssTot>1e-20?Math.max(0,1-ssRes/ssTot):0;
-  const rmse=Math.sqrt(Math.max(0,ssRes/sigWin.length));
+  const r2=ssTot>0?1-ssRes/ssTot:0;
+  const rmse=Math.sqrt(ssRes/sigWin.length);
 
-  return {modes, fittedSignal:fittedFull, rSquared:r2, rmse,
-          activeStart:iStart, activeEnd:iEnd,
-          bpActive: bpCentreHz > 0, bpCentreHz, bpHalfBwHz, svdThreshPct, weightAlpha};
+  return {modes, allModes, fittedSignal:fittedFull, rSquared:r2, rmse,
+          activeStart:iStart, activeEnd:iEnd, freqMin, freqMax};
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -1313,8 +1058,8 @@ function updateChart(signalData, peakResult, pronyResult) {
     const t0=time[0], tN=time[time.length-1];
     const envPoints=[];
     for (let t=t0; t<=tN; t+=(tN-t0)/200) {
-      const v=env.A*safeExpReal(-env.sigma*(t-t0))+off;
-      if (isFinite(v)) envPoints.push({x:t,y:v});
+      const v=env.A*Math.exp(-env.sigma*t)+off;
+      envPoints.push({x:t,y:v});
     }
     chart.data.datasets[4].data=envPoints;
     chart.data.datasets[4].hidden=false;
@@ -1324,10 +1069,8 @@ function updateChart(signalData, peakResult, pronyResult) {
 
   // Window shading (Prony)
   if (pronyResult) {
-    const t0=time[pronyResult.activeStart]??time[0];
-    const t1=time[Math.min(pronyResult.activeEnd,time.length-1)]??time[time.length-1];
-    const rawArr=Array.from(raw).filter(isFinite);
-    const yMax=rawArr.length>0?Math.max(...rawArr):1;
+    const t0=time[pronyResult.activeStart], t1=time[Math.min(pronyResult.activeEnd,time.length-1)];
+    const yMax=Math.max(...Array.from(raw));
     chart.data.datasets[5].data=[{x:t0,y:yMax*1.05},{x:t1,y:yMax*1.05}];
     chart.data.datasets[5].hidden=false;
   } else {
@@ -1355,7 +1098,6 @@ function updatePSD(signalData) {
   for (let i=1;i<fData.length;i++) if (fData[i].y>fData[domIdx].y) domIdx=i;
   const domFreq=fData[domIdx]?.x??0;
   const snr=estimateSNR(fData.map(d=>d.y), fData.map(d=>d.x), domIdx);
-  lastSnrDb = snr;
 
   psdChart.data.datasets[0].data=fData;
   // Vertical marker at dominant frequency
@@ -1415,192 +1157,40 @@ function buildMetricsDashboard(peakRes, pronyRes, signalData) {
   }
 
   if (pronyRes) {
-    html += `<div class="section-title">Prony Analysis</div>`;
+    const showAll = document.getElementById('prony-show-all').checked;
+    const displayModes = showAll ? pronyRes.allModes : pronyRes.modes;
+    html += `<div class="section-title">Prony Analysis${showAll?' — All Modes':` — Dominant Modes [${pronyRes.freqMin.toFixed(2)}–${pronyRes.freqMax.toFixed(2)} Hz]`}</div>`;
     html += card('Model R²', pronyRes.rSquared.toFixed(6), 'goodness of fit',
       pronyRes.rSquared>0.95?'Excellent fit':pronyRes.rSquared>0.80?'Good fit':'Poor fit — try more modes',
       pronyRes.rSquared>0.80?'pass':'warn');
     html += card('RMSE', pronyRes.rmse.toFixed(4), 'MW (fit error)','');
-    html += card('Modes Found', pronyRes.modes.length, `of ${document.getElementById('sl-modes').value} requested`,
-      pronyRes.modes.length===0?'⚠ No valid modes in band':'');
+    html += card('Dominant Modes', pronyRes.modes.length, `in [${pronyRes.freqMin.toFixed(2)}–${pronyRes.freqMax.toFixed(2)}] Hz`,
+      pronyRes.allModes.length > pronyRes.modes.length
+        ? `${pronyRes.allModes.length - pronyRes.modes.length} more mode(s) outside band`
+        : '');
+    html += card('Total Modes', pronyRes.allModes.length, `of ${document.getElementById('sl-modes').value} requested`, '');
 
-    // ── Enhancement status cards ──────────────────────────────────
-    const bpOn  = pronyRes.bpActive;
-    const svdOn = pronyRes.svdThreshPct > 0;
-    const wOn   = pronyRes.weightAlpha  > 0;
-    html += `<div class="section-title">Active Enhancements</div>`;
-    html += card('Bandpass Pre-filter',
-      bpOn ? `${pronyRes.bpCentreHz.toFixed(2)} ± ${pronyRes.bpHalfBwHz.toFixed(2)} Hz` : 'OFF',
-      bpOn ? 'isolating oscillation band' : 'full band (no filtering)',
-      bpOn ? '4th-order Butterworth, zero-phase' : 'enable via BP Centre slider',
-      bpOn ? 'pass' : '');
-    html += card('SVD Hankel Denoising',
-      svdOn ? `${pronyRes.svdThreshPct}% threshold` : 'OFF',
-      svdOn ? 'noise modes suppressed' : 'standard AR solve',
-      svdOn ? 'Low-energy singular values zeroed' : 'enable via SVD Threshold slider',
-      svdOn ? 'pass' : '');
-    html += card('Exp. Row Weighting',
-      wOn ? `α = ${pronyRes.weightAlpha.toFixed(1)}` : 'OFF',
-      wOn ? 'early samples emphasised' : 'uniform weighting',
-      wOn ? 'Down-weights late noise-floor samples' : 'enable via Row Weighting slider',
-      wOn ? 'pass' : '');
-
-    pronyRes.modes.forEach((m,i) => {
-      html += card(`Mode ${i+1}`,
+    displayModes.forEach((m,i) => {
+      let flagClass = '', flagNote = '';
+      if (!m.inBand) { flagClass='warn'; flagNote='out-of-band'; }
+      else if (!m.isDamped) { flagClass='fail'; flagNote='negative damping'; }
+      else if (m.dampingRatio<0.10) flagClass='warn';
+      html += card(`${showAll?'Mode':'Dom. Mode'} ${i+1}`,
         m.frequencyHz.toFixed(4), 'Hz',
-        `ζ=${(m.dampingRatio*100).toFixed(2)}%  σ=${m.dampingRate.toFixed(4)} Np/s  T=${m.period.toFixed(3)}s`,
-        m.dampingRatio<0.10?'warn':'');
+        `ζ=${(m.dampingRatio*100).toFixed(2)}%  σ=${m.dampingRate.toFixed(4)} Np/s  T=${m.period.toFixed(3)}s${flagNote?' · '+flagNote:''}`,
+        flagClass || (m.dampingRatio<0.10?'warn':''));
     });
   }
 
   if (!peakRes && !pronyRes) {
     html = '<div style="color:var(--muted);font-size:11px;padding:20px">Run a calculation to populate the metrics dashboard.</div>';
   }
-
-  // ── Diagnostics section (new — purely additive) ───────────────
-  const diag = computeDiagnostics(peakRes, pronyRes, signalData, lastSnrDb);
-  if (diag && (peakRes || pronyRes)) {
-    const qualColor = diag.fitQuality==='good'?'var(--success)':diag.fitQuality==='moderate'?'var(--warn)':'var(--danger)';
-    const qualIcon  = diag.fitQuality==='good'?'✓':diag.fitQuality==='moderate'?'~':'✗';
-    const confColor = diag.confidenceScore>=70?'var(--success)':diag.confidenceScore>=40?'var(--warn)':'var(--danger)';
-    html += `<div class="section-title">Diagnostics &amp; Confidence</div>`;
-    if (diag.fitQuality) {
-      html += card('Fit Quality', qualIcon+' '+diag.fitQuality.toUpperCase(), '',
-        'Based on pair consistency / R²', diag.fitQuality==='good'?'pass':diag.fitQuality==='moderate'?'warn':'fail');
-    }
-    if (diag.confidenceScore !== null) {
-      const score = diag.confidenceScore;
-      html += card('Confidence Score', score+'/100', '',
-        score>=70?'High confidence':score>=40?'Moderate confidence':'Low confidence — review warnings',
-        score>=70?'pass':score>=40?'warn':'fail');
-    }
-    if (diag.warnings.length) {
-      html += `<div class="metric-card warn" style="flex-basis:100%">
-        <div class="mc-label">Warnings &amp; Notes</div>
-        <div style="font-size:10px;line-height:1.8;color:var(--text);margin-top:6px">
-          ${diag.warnings.map(w=>`<div>${w}</div>`).join('')}
-        </div>
-      </div>`;
-    } else {
-      html += card('Signal Health', '✓ No Issues', '', 'Clean signal — all checks passed', 'pass');
-    }
-    if (lastSnrDb !== null && isFinite(lastSnrDb)) {
-      html += card('Spectral SNR', lastSnrDb.toFixed(1)+' dB', '',
-        lastSnrDb>=20?'Good SNR':lastSnrDb>=10?'Moderate SNR':'Low SNR',
-        lastSnrDb>=20?'pass':lastSnrDb>=10?'warn':'fail');
-    }
-  }
-
   panel.innerHTML = html;
 }
 
 // ════════════════════════════════════════════════════════════════════
-//  DIAGNOSTICS LAYER  (new — purely additive, zero impact on results)
+//  RESULT FORMATTING (text)
 // ════════════════════════════════════════════════════════════════════
-function computeDiagnostics(peakRes, pronyRes, signalData, snrDb) {
-  const diag = { warnings:[], fitQuality:null, confidenceScore:null, notes:[] };
-
-  // ── SNR check ──────────────────────────────────────────────────
-  if (snrDb !== null && isFinite(snrDb)) {
-    if (snrDb < 10)  diag.warnings.push(`⚠ LOW SNR: ${snrDb.toFixed(1)} dB — results may be unreliable on noisy data`);
-    else if (snrDb < 20) diag.warnings.push(`ℹ Moderate SNR: ${snrDb.toFixed(1)} dB — verify results visually`);
-  } else {
-    diag.warnings.push('⚠ SNR could not be estimated');
-  }
-
-  // ── Non-uniform sampling note ──────────────────────────────────
-  if (signalData?.samplingInfo?.uniform === false) {
-    diag.warnings.push('⚠ Non-uniform sampling — Prony and PSD assume uniform Δt');
-  }
-
-  // ── Peak method diagnostics ────────────────────────────────────
-  if (peakRes) {
-    const nPairs = peakRes.pairs.length;
-    if (nPairs < 2) {
-      diag.warnings.push(`⚠ Only ${nPairs} peak pair(s) — increase signal window or reduce Prominence`);
-    }
-    const zetaStd = peakRes.stdDampingRatio;
-    const freqStd = peakRes.stdFrequency;
-    // Coefficient of variation for damping ratio across pairs
-    const zetaCV = peakRes.avgDampingRatio > 0 ? zetaStd / peakRes.avgDampingRatio : Infinity;
-    if (zetaCV > 0.3) {
-      diag.warnings.push(`⚠ High damping variability across pairs (CV=${(zetaCV*100).toFixed(0)}%) — possible non-stationary oscillation or noise`);
-    }
-    if (freqStd > 0.05 * peakRes.avgFrequency) {
-      diag.warnings.push(`ℹ Frequency varies between pairs (±${freqStd.toFixed(4)} Hz) — possible multi-mode signal`);
-    }
-    // Fit quality label based on consistency
-    if (zetaCV < 0.10 && nPairs >= 3)      diag.fitQuality = 'good';
-    else if (zetaCV < 0.25 && nPairs >= 2) diag.fitQuality = 'moderate';
-    else                                     diag.fitQuality = 'poor';
-
-    // Confidence score 0–100 based on: nPairs (up to 50), low CV (up to 30), SNR (up to 20)
-    const snrScore  = snrDb!==null&&isFinite(snrDb) ? Math.min(20, Math.max(0, (snrDb/30)*20)) : 5;
-    const pairScore = Math.min(50, nPairs * 10);
-    const cvScore   = Math.max(0, 30 - zetaCV * 60);
-    diag.confidenceScore = Math.round(pairScore + cvScore + snrScore);
-  }
-
-  // ── Prony method diagnostics ───────────────────────────────────
-  if (pronyRes) {
-    const r2 = pronyRes.rSquared;
-    if (r2 > 0.95)       diag.fitQuality = 'good';
-    else if (r2 > 0.80)  diag.fitQuality = 'moderate';
-    else                 diag.fitQuality = 'poor';
-
-    if (r2 < 0.80) {
-      diag.warnings.push(`⚠ Poor Prony fit (R²=${r2.toFixed(4)}) — try increasing Modes or Window samples`);
-    }
-
-    const unstableModes = pronyRes.modes.filter(m => m.unstable);
-    if (unstableModes.length > 0) {
-      diag.warnings.push(`⚠ ${unstableModes.length} overdamped/unstable mode(s) detected — may indicate noisy window selection`);
-    }
-
-    const lowDampModes = pronyRes.modes.filter(m => m.dampingRatio < 0.05);
-    if (lowDampModes.length > 0) {
-      diag.warnings.push(`⚠ ${lowDampModes.length} mode(s) with ζ < 5% — potential compliance risk`);
-    }
-
-    if (pronyRes.modes.length === 0) {
-      diag.warnings.push('⚠ No modes found in analysis band — check window, modes count, and energy threshold');
-    }
-
-    // Confidence: 70% from R², 30% from SNR
-    const snrScore  = snrDb!==null&&isFinite(snrDb) ? Math.min(30, Math.max(0, (snrDb/30)*30)) : 8;
-    const r2Score   = Math.round(Math.max(0, r2) * 70);
-    diag.confidenceScore = Math.round(r2Score + snrScore);
-  }
-
-  // ── Method agreement note (when both were run previously) ──────
-  // (Runs only when both are in cache simultaneously — informational only)
-
-  return diag;
-}
-
-function formatDiagnostics(diag) {
-  if (!diag) return '';
-  const lines = [];
-  lines.push('\n━━━━━ DIAGNOSTICS ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  if (diag.fitQuality) {
-    const qual = diag.fitQuality.toUpperCase();
-    const icon = qual==='GOOD'?'✓':qual==='MODERATE'?'~':'✗';
-    lines.push(`Fit Quality:       ${icon} ${qual}`);
-  }
-  if (diag.confidenceScore !== null) {
-    const score = diag.confidenceScore;
-    const bar = '█'.repeat(Math.round(score/10)) + '░'.repeat(10-Math.round(score/10));
-    lines.push(`Confidence Score:  ${bar}  ${score}/100`);
-  }
-  if (diag.warnings.length) {
-    lines.push('');
-    for (const w of diag.warnings) lines.push(w);
-  }
-  if (!diag.warnings.length && diag.fitQuality==='good') {
-    lines.push('✓ No significant issues detected.');
-  }
-  lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  return lines.join('\n');
-}
 function pad(str,w) { return String(str).padStart(w); }
 
 function fmtPeakResult(result) {
@@ -1641,34 +1231,39 @@ function fmtPronyResult(result, numModes, windowLen, signalData) {
   const t=signalData.time;
   const t0=t[result.activeStart], t1=t[Math.min(result.activeEnd,t.length-1)];
   const activeSamples=result.activeEnd-result.activeStart;
-
-  // Build enhancement flags line
-  const enhFlags = [];
-  if (result.bpActive)       enhFlags.push(`BP-filter: ${result.bpCentreHz.toFixed(2)}±${result.bpHalfBwHz.toFixed(2)} Hz`);
-  if (result.svdThreshPct>0) enhFlags.push(`SVD-thresh: ${result.svdThreshPct}%`);
-  if (result.weightAlpha>0)  enhFlags.push(`Row-weight α=${result.weightAlpha.toFixed(1)}`);
-  const enhLine = enhFlags.length ? `Enhancements:  ${enhFlags.join('   ')}` : 'Enhancements:  none (standard Prony)';
+  const showAll = document.getElementById('prony-show-all').checked;
+  const displayModes = showAll ? result.allModes : result.modes;
 
   const lines=[
     `Prony Analysis  |  Modes=${numModes}  Window=${windowLen} samples`,
+    `Freq range: [${result.freqMin.toFixed(2)}, ${result.freqMax.toFixed(2)}] Hz`,
     '='.repeat(64),
     `Active window: [${result.activeStart}–${result.activeEnd}]  (${t0.toFixed(3)}s–${t1.toFixed(3)}s,  ${activeSamples} samples)`,
-    enhLine,
     `R² = ${result.rSquared.toFixed(6)}   RMSE = ${result.rmse.toFixed(4)} MW`,
     '',
   ];
 
-  if (!result.modes.length) {
-    lines.push(`⚠  No modes in [${PRONY_FREQ_MIN_HZ}, ${PRONY_FREQ_MAX_HZ}] Hz with σ>0.`);
-    lines.push('Try: increase Modes or Window, lower Energy Threshold.');
+  if (!displayModes.length) {
+    lines.push(`⚠  No modes found in [${result.freqMin}, ${result.freqMax}] Hz with σ>0.`);
+    lines.push('Try: increase Modes or Window, lower Energy Threshold, or adjust freq range.');
   } else {
-    const hdr=`${'Mode'.padStart(5)} ${'Amp'.padStart(10)} ${'Freq(Hz)'.padStart(9)} ${'Period(s)'.padStart(10)} ${'σ(Np/s)'.padStart(9)} ${'ζ'.padStart(8)} ${'Flag'.padStart(6)}`;
+    const hdr=`${'Mode'.padStart(5)} ${'Amp'.padStart(10)} ${'Freq(Hz)'.padStart(9)} ${'Period(s)'.padStart(10)} ${'σ(Np/s)'.padStart(9)} ${'ζ'.padStart(8)} ${'Flag'.padStart(10)}`;
+    lines.push(showAll ? '--- ALL MODES (including out-of-band) ---' : `--- DOMINANT MODES in [${result.freqMin.toFixed(2)}–${result.freqMax.toFixed(2)}] Hz ---`);
     lines.push(hdr, '-'.repeat(hdr.length));
-    for (const m of result.modes) {
-      const flag = m.dampingRatio<0.10?'⚠ LOW':(m.unstable?'⚠ OVR':'OK');
+    for (const m of displayModes) {
+      let flag;
+      if (!m.inBand) flag = 'OUT-BAND';
+      else if (!m.isDamped) flag = '⚠ NEGDAMP';
+      else if (m.dampingRatio<0.10) flag = '⚠ LOW';
+      else if (m.unstable) flag = '⚠ OVR';
+      else flag = 'OK';
       lines.push(
-        `${String(m.index).padStart(5)} ${m.amplitude.toFixed(5).padStart(10)} ${m.frequencyHz.toFixed(4).padStart(9)} ${m.period.toFixed(4).padStart(10)} ${m.dampingRate.toFixed(4).padStart(9)} ${(m.dampingRatio).toFixed(4).padStart(8)} ${flag.padStart(6)}`
+        `${String(m.index).padStart(5)} ${m.amplitude.toFixed(5).padStart(10)} ${m.frequencyHz.toFixed(4).padStart(9)} ${m.period.toFixed(4).padStart(10)} ${m.dampingRate.toFixed(4).padStart(9)} ${(m.dampingRatio).toFixed(4).padStart(8)} ${flag.padStart(10)}`
       );
+    }
+    if (!showAll && result.allModes.length > result.modes.length) {
+      lines.push('');
+      lines.push(`(${result.allModes.length - result.modes.length} mode(s) outside freq range or negatively damped — enable "Show All Modes" to view)`);
     }
   }
   return lines.join('\n');
@@ -1703,11 +1298,14 @@ function setPeakExportData(result) {
 }
 
 function setPronyExportData(result) {
-  const headers=['Mode','Amplitude_MW','Freq_Hz','Period_s','DampingRate_Nps','DampingRatio','Flag'];
-  const rows=result.modes.map(m=>[
+  const showAll = document.getElementById('prony-show-all').checked;
+  const exportModes = showAll ? result.allModes : result.modes;
+  const headers=['Mode','Amplitude_MW','Freq_Hz','Period_s','DampingRate_Nps','DampingRatio','InBand','Flag'];
+  const rows=exportModes.map(m=>[
     m.index, m.amplitude.toFixed(8), m.frequencyHz.toFixed(6), m.period.toFixed(6),
     m.dampingRate.toFixed(6), m.dampingRatio.toFixed(6),
-    m.dampingRatio<0.10?'LOW_DAMPING':(m.unstable?'OVERDAMPED':'OK'),
+    m.inBand?'YES':'NO',
+    !m.inBand?'OUT_OF_BAND':(!m.isDamped?'NEG_DAMP':m.dampingRatio<0.10?'LOW_DAMPING':(m.unstable?'OVERDAMPED':'OK')),
   ]);
   lastExportData={type:'prony', headers, rows};
 }
@@ -1779,8 +1377,7 @@ function runPeakAndDisplay() {
   try { result=runPeakEnvelope(cachedSignal, numPeaks, prominence); }
   catch(e) { showToast('Peak detection error: '+e.message); return; }
   cachedPeakRes=result; cachedPronyRes=null;
-  const diag=computeDiagnostics(result, null, cachedSignal, lastSnrDb);
-  writeOutput(fmtPeakResult(result)+formatDiagnostics(diag));
+  writeOutput(fmtPeakResult(result));
   updateChart(cachedSignal, result, null);
   syncHandleCanvas();
   setPeakExportData(result);
@@ -1791,19 +1388,15 @@ function runPeakAndDisplay() {
 
 function runPronyAndDisplay() {
   if (!cachedSignal) return;
-  const numModes  = parseInt(document.getElementById('sl-modes').value)||3;
-  const windowLen = parseInt(document.getElementById('sl-window').value)||237;
-  const energyPct = (parseInt(document.getElementById('sl-energy').value)||1)/100;
-  const bpCentre  = parseFloat(document.getElementById('sl-bp-centre').value)||0;
-  const bpBw      = parseFloat(document.getElementById('sl-bp-bw').value)||0.3;
-  const svdThresh = parseFloat(document.getElementById('sl-svd').value)||0;
-  const wAlpha    = parseFloat(document.getElementById('sl-weight').value)||0;
+  const numModes =parseInt(document.getElementById('sl-modes').value)||3;
+  // Use number input for window (allows values beyond slider max of 2000)
+  const windowLen=parseInt(document.getElementById('num-window').value)||parseInt(document.getElementById('sl-window').value)||237;
+  const energyPct=(parseInt(document.getElementById('sl-energy').value)||1)/100;
   let result;
-  try { result=runProny(cachedSignal, numModes, windowLen, energyPct, bpCentre, bpBw, svdThresh, wAlpha); }
+  try { result=runProny(cachedSignal, numModes, windowLen, energyPct); }
   catch(e) { showToast('Prony error: '+e.message); writeOutput('Prony error: '+e.message); return; }
   cachedPronyRes=result; cachedPeakRes=null;
-  const diag=computeDiagnostics(null, result, cachedSignal, lastSnrDb);
-  writeOutput(fmtPronyResult(result, numModes, windowLen, cachedSignal)+formatDiagnostics(diag));
+  writeOutput(fmtPronyResult(result, numModes, windowLen, cachedSignal));
   updateChart(cachedSignal, null, result);
   syncHandleCanvas();
   setPronyExportData(result);
