@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Generator Oscillation Damping Tool</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.1/chartjs-plugin-zoom.min.js"></script>
+<!-- ▼ All calculation logic lives in damping-tool.js ▼ -->
+<script src="damping-tool.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Syne:wght@400;600;700;800&display=swap');
+
+/* ── CSS Variables — default = LIGHT mode ── */
+:root {
+  --bg:#f1f5f9; --surface:#ffffff; --surface2:#e2e8f0; --border:#cbd5e1;
+  --accent:#2563eb; --accent2:#0891b2; --warn:#d97706; --danger:#dc2626;
+  --success:#16a34a; --text:#0f172a; --muted:#64748b;
+  --chart-grid:#e2e8f0;
+  --mono:'JetBrains Mono',monospace; --sans:'Syne',sans-serif; --radius:6px;
+}
+:root.dark {
+  --bg:#0b0e14; --surface:#131720; --surface2:#1a2030; --border:#252d40;
+  --accent:#3b82f6; --accent2:#22d3ee; --warn:#f59e0b; --danger:#ef4444;
+  --success:#22c55e; --text:#e2e8f0; --muted:#64748b;
+  --chart-grid:#1a2030;
+}
+
+*,*::before,*::after { box-sizing:border-box; margin:0; padding:0 }
+body { background:var(--bg); color:var(--text); font-family:var(--mono); font-size:13px;
+  min-height:100vh; display:flex; flex-direction:column; overflow:hidden }
+
+/* ── Header ── */
+header { background:var(--surface); border-bottom:1px solid var(--border);
+  padding:10px 18px; display:flex; align-items:center; gap:14px; flex-shrink:0 }
+header h1 { font-family:var(--sans); font-size:15px; font-weight:800; color:var(--accent2);
+  letter-spacing:.02em; white-space:nowrap }
+header .tagline { color:var(--muted); font-size:10px; flex:1 }
+.btn { font-family:var(--mono); font-size:12px; font-weight:500; padding:6px 14px;
+  border-radius:var(--radius); border:1px solid var(--border); background:var(--surface2);
+  color:var(--text); cursor:pointer; transition:all .15s; white-space:nowrap }
+.btn:hover { background:var(--border); border-color:var(--accent); color:var(--accent2) }
+.btn-primary { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:700 }
+.btn-primary:hover { filter:brightness(1.1) }
+
+/* theme toggle */
+#theme-toggle { font-family:var(--mono); font-size:12px; background:var(--surface2);
+  border:1px solid var(--border); border-radius:20px; color:var(--text); cursor:pointer;
+  padding:5px 12px; display:flex; align-items:center; gap:6px; transition:all .2s;
+  white-space:nowrap; flex-shrink:0 }
+#theme-toggle:hover { border-color:var(--accent2); color:var(--accent2) }
+.toggle-track { width:28px; height:15px; border-radius:8px; background:var(--border);
+  position:relative; transition:background .2s; flex-shrink:0 }
+:root.dark .toggle-track { background:var(--accent2) }
+.toggle-thumb { width:11px; height:11px; border-radius:50%; background:var(--muted);
+  position:absolute; top:2px; left:2px; transition:transform .2s,background .2s }
+:root.dark .toggle-thumb { transform:translateX(13px); background:#fff }
+
+/* ── Settings bar ── */
+#settings-bar { background:var(--surface); border-bottom:1px solid var(--border);
+  padding:8px 18px; display:flex; flex-wrap:wrap; gap:12px; align-items:center; flex-shrink:0 }
+.setting-group { display:flex; align-items:center; gap:5px }
+.setting-group label { color:var(--muted); font-size:10px; white-space:nowrap }
+.setting-group input[type=number] { width:68px; background:var(--surface2);
+  border:1px solid var(--border); border-radius:var(--radius); color:var(--text);
+  font-family:var(--mono); font-size:11px; padding:3px 5px }
+.setting-group input[type=number]:focus { outline:none; border-color:var(--accent) }
+.toggle-label { display:flex; align-items:center; gap:5px; cursor:pointer;
+  color:var(--text); font-size:10px; user-select:none }
+.toggle-label input[type=checkbox] { accent-color:var(--accent); width:13px; height:13px }
+.sep { width:1px; height:20px; background:var(--border) }
+
+/* column selector */
+#col-select-row { display:none; align-items:center; gap:8px; font-size:10px; color:var(--muted) }
+#col-select-row.visible { display:flex }
+#col-select-row select { font-family:var(--mono); font-size:10px; background:var(--surface2);
+  border:1px solid var(--border); border-radius:var(--radius); color:var(--text); padding:3px 6px }
+
+/* ── Prony panel ── */
+#prony-panel { background:var(--surface); border-bottom:1px solid var(--border);
+  padding:8px 18px; display:none; flex-wrap:wrap; gap:18px; align-items:center; flex-shrink:0 }
+#prony-panel.visible { display:flex }
+.slider-group { display:flex; align-items:center; gap:7px; flex:1; min-width:190px }
+.slider-group label { color:var(--muted); font-size:10px; white-space:nowrap }
+.slider-group input[type=range] { flex:1; accent-color:var(--accent2); cursor:pointer }
+.slider-val { font-weight:700; color:var(--accent2); min-width:34px; text-align:right; font-size:11px }
+.mini-input { width:58px; background:var(--surface2); border:1px solid var(--border);
+  border-radius:var(--radius); color:var(--text); font-family:var(--mono);
+  font-size:11px; padding:3px 5px }
+
+/* ── Main layout ── */
+#main { flex:1; display:grid; grid-template-columns:390px 1fr; grid-template-rows:1fr 1fr;
+  min-height:0; gap:0 }
+
+/* left panes */
+#input-pane,#output-pane { background:var(--surface); border-right:1px solid var(--border);
+  display:flex; flex-direction:column; min-height:0; overflow:hidden }
+#input-pane { border-bottom:1px solid var(--border) }
+.pane-header { padding:6px 11px; font-size:9px; font-weight:700; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--muted); background:var(--bg);
+  border-bottom:1px solid var(--border); display:flex; align-items:center; gap:7px; flex-shrink:0 }
+.pane-header .dot { width:6px; height:6px; border-radius:50%; background:var(--accent2) }
+.pane-header .actions { margin-left:auto; display:flex; gap:5px }
+textarea { flex:1; background:transparent; border:none; outline:none; color:var(--text);
+  font-family:var(--mono); font-size:11px; padding:9px 11px; resize:none; line-height:1.6 }
+textarea::placeholder { color:var(--muted) }
+#output-box { flex:1; overflow-y:auto; padding:9px 11px; font-size:11px; line-height:1.7;
+  white-space:pre; color:var(--text) }
+#output-box::-webkit-scrollbar { width:4px }
+#output-box::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px }
+
+/* right chart pane */
+#chart-pane { grid-column:2; grid-row:1/span 2; background:var(--bg);
+  display:flex; flex-direction:column; min-height:0 }
+.tab-bar { display:flex; border-bottom:1px solid var(--border);
+  background:var(--surface); flex-shrink:0; padding:0 12px }
+.tab { padding:7px 16px; font-size:10px; font-weight:600; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--muted); cursor:pointer;
+  border-bottom:2px solid transparent; transition:all .15s; user-select:none; white-space:nowrap }
+.tab:hover { color:var(--text) }
+.tab.active { color:var(--accent2); border-bottom-color:var(--accent2) }
+.tab-panel { display:none; flex:1; min-height:0; flex-direction:column }
+.tab-panel.active { display:flex }
+
+/* chart containers */
+#chart-container { flex:1; position:relative; padding:10px 14px 6px; min-height:0 }
+canvas#main-chart { display:block }
+#handle-canvas { position:absolute; top:0; left:0; width:100%; height:100%;
+  pointer-events:none; z-index:10 }
+#handle-canvas.active { pointer-events:auto }
+#chart-overlay-wrap { position:relative; flex:1; min-height:0; display:flex; flex-direction:column }
+
+/* chart toolbar */
+#chart-toolbar { display:flex; align-items:center; gap:6px; padding:4px 14px;
+  border-bottom:1px solid var(--border); background:var(--surface); flex-shrink:0 }
+#chart-toolbar .tb-label { font-size:9px; color:var(--muted); text-transform:uppercase;
+  letter-spacing:.08em; margin-right:2px }
+.tb-btn { font-family:var(--mono); font-size:10px; padding:3px 9px;
+  border-radius:4px; border:1px solid var(--border); background:var(--surface2);
+  color:var(--text); cursor:pointer; transition:all .12s; white-space:nowrap }
+.tb-btn:hover { border-color:var(--accent); color:var(--accent2) }
+.tb-btn.active { background:var(--accent); border-color:var(--accent); color:#fff }
+.tb-sep { width:1px; height:16px; background:var(--border); margin:0 2px }
+
+/* prony window strip */
+#prony-window-strip { display:none; padding:4px 14px; font-size:10px; color:var(--muted);
+  background:var(--surface); border-bottom:1px solid var(--border);
+  flex-shrink:0; align-items:center; gap:14px; flex-wrap:wrap }
+#prony-window-strip.visible { display:flex }
+#prony-window-strip span { color:var(--accent2); font-weight:700 }
+#prony-window-strip .pw-hint { color:var(--muted); font-style:italic; font-size:9px }
+
+/* PSD panel */
+#psd-container { flex:1; position:relative; padding:10px 14px 6px; min-height:0 }
+canvas#psd-chart { display:block }
+#psd-info { padding:6px 14px; font-size:10px; color:var(--muted);
+  border-top:1px solid var(--border); flex-shrink:0; display:flex; gap:20px }
+#psd-info span { color:var(--text) }
+
+/* Metrics panel */
+#metrics-panel { flex:1; overflow-y:auto; padding:14px; display:flex; flex-wrap:wrap;
+  gap:12px; align-content:flex-start }
+.metric-card { background:var(--surface); border:1px solid var(--border);
+  border-radius:8px; padding:12px 16px; min-width:180px; flex:1 }
+.metric-card .mc-label { font-size:9px; font-weight:700; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--muted); margin-bottom:6px }
+.metric-card .mc-value { font-size:22px; font-weight:700; color:var(--text);
+  font-family:var(--sans); line-height:1.1 }
+.metric-card .mc-unit { font-size:10px; color:var(--muted); margin-top:2px }
+.metric-card .mc-sub { font-size:10px; color:var(--muted); margin-top:4px; font-style:italic }
+.metric-card.pass { border-color:var(--success) }
+.metric-card.fail { border-color:var(--danger) }
+.metric-card.warn { border-color:var(--warn) }
+.metric-card .mc-value.pass { color:var(--success) }
+.metric-card .mc-value.fail { color:var(--danger) }
+.metric-card .mc-value.warn { color:var(--warn) }
+.section-title { width:100%; font-size:9px; font-weight:700; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--muted); padding:4px 0 2px;
+  border-bottom:1px solid var(--border) }
+
+/* status bar */
+#statusbar { background:var(--bg); border-top:1px solid var(--border); padding:3px 18px;
+  font-size:9px; color:var(--muted); display:flex; gap:18px; flex-shrink:0; flex-wrap:wrap }
+#statusbar span { color:var(--text) }
+.warn-text { color:var(--warn) }
+
+/* toast */
+#toast { position:fixed; bottom:28px; left:50%; transform:translateX(-50%);
+  background:var(--surface); color:var(--danger); border:1px solid var(--danger);
+  border-radius:var(--radius); padding:7px 16px; font-size:11px; display:none;
+  z-index:999; max-width:500px; text-align:center }
+
+#file-input { display:none }
+</style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header>
+  <h1>⚡ Generator Oscillation Damping Tool</h1>
+  <span class="tagline">Paste space/tab/comma-separated Time(s) and MW data, or load a file.
+    Press <kbd style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:1px 4px">Enter</kbd> to calculate.</span>
+  <input type="file" id="file-input" accept=".csv,.txt,*">
+  <button id="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode">
+    <span id="theme-icon">🌙</span>
+    <div class="toggle-track"><div class="toggle-thumb"></div></div>
+    <span id="theme-label">Dark</span>
+  </button>
+  <button class="btn" onclick="document.getElementById('file-input').click()">📂 Load File</button>
+  <button class="btn btn-primary" onclick="calculate()" title="Calculate (Enter)">▶ Calculate</button>
+  <button class="btn" onclick="exportCSV()" title="Export results to CSV">⬇ Export</button>
+</header>
+
+<!-- ── Settings bar ── -->
+<div id="settings-bar">
+  <div class="setting-group">
+    <label>Peaks (4–8 rec.)</label>
+    <input type="number" id="num-peaks" value="6" min="1" max="16">
+  </div>
+  <div class="setting-group">
+    <label>Prominence</label>
+    <input type="number" id="prominence" value="0.005" step="0.001" min="0">
+  </div>
+  <div class="setting-group">
+    <label>Smooth Window</label>
+    <input type="number" id="smooth-win" value="3" min="3" max="99">
+  </div>
+  <div class="sep"></div>
+  <label class="toggle-label">
+    <input type="checkbox" id="use-offset" checked>
+    Offset Removal
+  </label>
+  <div class="sep"></div>
+  <label class="toggle-label">
+    <input type="checkbox" id="use-prony" onchange="toggleProny()">
+    Full Prony Analysis
+  </label>
+  <div class="sep"></div>
+  <!-- Column selectors — shown only when data has >2 columns -->
+  <div id="col-select-row">
+    <label>Time col:</label>
+    <select id="col-time" onchange="onColumnChange()"></select>
+    <label>Signal col:</label>
+    <select id="col-signal" onchange="onColumnChange()"></select>
+  </div>
+</div>
+
+<!-- ── Prony panel (visible when Prony mode is on) ── -->
+<div id="prony-panel">
+  <div class="slider-group">
+    <label>Modes</label>
+    <input type="range" id="sl-modes" min="1" max="20" value="3" oninput="onSlider(this,'val-modes')">
+    <span class="slider-val" id="val-modes">3</span>
+  </div>
+  <div class="slider-group" style="flex:1.6;min-width:240px">
+    <label>Window (samples)</label>
+    <input type="range" id="sl-window" min="10" max="2000" value="237" oninput="onSliderWindow(this)">
+    <span class="slider-val" id="val-window">237</span>
+    <input type="number" id="num-window" value="237" min="10" max="5000"
+      class="mini-input" style="margin-left:4px" oninput="onNumWindow(this)" title="Type exact window size">
+  </div>
+  <div class="slider-group">
+    <label>Energy Threshold (%)</label>
+    <input type="range" id="sl-energy" min="1" max="20" value="1" oninput="onSlider(this,'val-energy')">
+    <span class="slider-val" id="val-energy">1</span>
+  </div>
+  <div class="sep"></div>
+  <div class="setting-group">
+    <label>Freq Min (Hz)</label>
+    <input type="number" id="prony-freq-min" value="0.10" step="0.01" min="0" max="10"
+      class="mini-input" oninput="debouncedRunProny()" title="Minimum frequency for Prony mode filtering">
+  </div>
+  <div class="setting-group">
+    <label>Freq Max (Hz)</label>
+    <input type="number" id="prony-freq-max" value="5.00" step="0.01" min="0" max="50"
+      class="mini-input" oninput="debouncedRunProny()" title="Maximum frequency for Prony mode filtering">
+  </div>
+  <div class="sep"></div>
+  <div class="setting-group">
+    <label class="toggle-label">
+      <input type="checkbox" id="prony-smooth-on" onchange="debouncedRunProny()">
+      Prony Smooth
+    </label>
+  </div>
+  <div class="setting-group">
+    <label>Win</label>
+    <input type="number" id="prony-smooth-win" value="5" min="3" max="99" step="2"
+      class="mini-input" oninput="debouncedRunProny()" title="Smoothing window before Prony decomposition">
+  </div>
+  <div class="sep"></div>
+  <label class="toggle-label">
+    <input type="checkbox" id="prony-show-all" onchange="debouncedRunProny()">
+    Show All Modes
+  </label>
+</div>
+
+<!-- ── Main layout ── -->
+<div id="main">
+  <!-- Left top: input -->
+  <div id="input-pane">
+    <div class="pane-header">
+      <div class="dot"></div>INPUT DATA
+      <div class="actions">
+        <button class="btn" style="padding:2px 7px;font-size:9px" onclick="clearInput()">Clear</button>
+        <button class="btn" style="padding:2px 7px;font-size:9px" onclick="loadSample()">Sample</button>
+      </div>
+    </div>
+    <textarea id="input-box" placeholder="0.000   100.000&#10;0.020   102.345&#10;0.040   98.123&#10;..."></textarea>
+  </div>
+
+  <!-- Left bottom: results -->
+  <div id="output-pane">
+    <div class="pane-header">
+      <div class="dot" style="background:var(--warn)"></div>RESULTS
+    </div>
+    <div id="output-box">Results will appear here after Calculate.
+
+Keyboard shortcut: press Enter (when not in text area) to run.</div>
+  </div>
+
+  <!-- Right: tabbed charts -->
+  <div id="chart-pane">
+    <div class="tab-bar">
+      <div class="tab active" onclick="switchTab('signal')">Signal &amp; Fit</div>
+      <div class="tab" onclick="switchTab('psd')">PSD / Spectrum</div>
+      <div class="tab" onclick="switchTab('metrics')">Metrics Dashboard</div>
+    </div>
+
+    <!-- Tab 1: signal chart -->
+    <div id="tab-signal" class="tab-panel active">
+      <div id="chart-toolbar">
+        <span class="tb-label">Interact</span>
+        <button class="tb-btn active" id="tb-pan" onclick="setChartMode('pan')" title="Pan">✋ Pan</button>
+        <button class="tb-btn" id="tb-zoom" onclick="setChartMode('zoom')" title="Box zoom">🔍 Zoom</button>
+        <button class="tb-btn" id="tb-reset" onclick="resetZoom()" title="Reset zoom">⌂ Reset</button>
+        <div class="tb-sep"></div>
+        <span class="tb-label">Prony Window</span>
+        <button class="tb-btn" id="tb-window" onclick="toggleWindowMode()" title="Drag handles to set Prony window">◧ Set Window</button>
+        <button class="tb-btn" id="tb-clear-win" onclick="clearWindowSelection()" title="Clear manual window">✕ Clear</button>
+        <div class="tb-sep"></div>
+        <span style="font-size:9px;color:var(--muted)">Scroll = zoom Y &nbsp;|&nbsp; Shift+scroll = zoom X &nbsp;|&nbsp; Drag = pan</span>
+      </div>
+      <div id="prony-window-strip">
+        Window: <span id="pw-t0">—</span>s → <span id="pw-t1">—</span>s &nbsp;|&nbsp;
+        Samples: <span id="pw-n">—</span> &nbsp;|&nbsp;
+        Duration: <span id="pw-dur">—</span>s
+        <span class="pw-hint">&nbsp; Drag the handles to adjust.</span>
+      </div>
+      <div id="chart-overlay-wrap">
+        <div id="chart-container">
+          <canvas id="main-chart"></canvas>
+          <canvas id="handle-canvas"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 2: PSD -->
+    <div id="tab-psd" class="tab-panel">
+      <div id="psd-container">
+        <canvas id="psd-chart"></canvas>
+      </div>
+      <div id="psd-info">
+        Dominant freq: <span id="psd-dom">—</span> &nbsp;|&nbsp;
+        SNR est.: <span id="psd-snr">—</span> dB &nbsp;|&nbsp;
+        Nyquist: <span id="psd-nyq">—</span> Hz
+      </div>
+    </div>
+
+    <!-- Tab 3: metrics -->
+    <div id="tab-metrics" class="tab-panel">
+      <div id="metrics-panel">
+        <div style="color:var(--muted);font-size:11px;padding:20px">
+          Run a calculation to populate the metrics dashboard.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Status bar ── -->
+<div id="statusbar">
+  <div>Samples: <span id="st-samples">—</span></div>
+  <div>Duration: <span id="st-duration">—</span></div>
+  <div>Fs: <span id="st-fs">—</span> Hz</div>
+  <div>Δt: <span id="st-dt">—</span></div>
+  <div>Mode: <span id="st-mode">—</span></div>
+  <div id="st-r2-wrap" style="display:none">R²: <span id="st-r2">—</span></div>
+  <div id="st-rmse-wrap" style="display:none">RMSE: <span id="st-rmse">—</span></div>
+  <div id="st-nonuniform" style="display:none" class="warn-text">⚠ Non-uniform sampling detected</div>
+  <div id="st-columns" style="display:none">Columns: <span id="st-col-count">—</span></div>
+</div>
+
+<div id="toast"></div>
+
+<!-- ════════════════════════════════════════════════════════════════
+     UI / CHART / ORCHESTRATION  (damping-tool.js handles math)
+     ════════════════════════════════════════════════════════════════ -->
+<script>
+// ── Application State ───────────────────────────────────────────────
+let cachedSignal   = null;
+let cachedPeakRes  = null;
+let cachedPronyRes = null;
+let chart = null, psdChart = null;
+let debounceId = null;
+let isDark = false;                  // default = light mode
+let lastExportData = null;
+let parsedColumns  = null;           // { headers, columns, nRows }
+let selectedTimeCol   = 0;          // tracks user's column selection
+let selectedSignalCol = 1;
+
+// Prony window drag state
+let manualWindowT0  = null;
+let manualWindowT1  = null;
+let windowModeActive = false;
+let chartMode = 'pan';
+let hdl = { dragging: null, hoverHandle: null };
+
+// ── UI Helpers ──────────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.style.display = 'block';
+  clearTimeout(showToast._id);
+  showToast._id = setTimeout(() => t.style.display = 'none', 4500);
+}
+function writeOutput(txt) { document.getElementById('output-box').textContent = txt; }
+function setStatus(samples, duration, dt, mode) {
+  document.getElementById('st-samples').textContent  = samples ?? '—';
+  document.getElementById('st-duration').textContent = duration != null ? duration.toFixed(3) + 's' : '—';
+  document.getElementById('st-dt').textContent       = dt != null ? dt.toFixed(5) + 's' : '—';
+  document.getElementById('st-fs').textContent       = dt > 0 ? (1/dt).toFixed(2) : '—';
+  document.getElementById('st-mode').textContent     = mode ?? '—';
+}
+
+// ── Slider sync helpers ──────────────────────────────────────────────
+function onSlider(el, valId) {
+  document.getElementById(valId).textContent = el.value;
+  debouncedRunProny();
+}
+function onSliderWindow(el) {
+  document.getElementById('val-window').textContent = el.value;
+  document.getElementById('num-window').value = el.value;
+  debouncedRunProny();
+}
+function onNumWindow(el) {
+  const v = Math.max(10, Math.min(5000, parseInt(el.value) || 237));
+  document.getElementById('val-window').textContent = v;
+  document.getElementById('sl-window').value = Math.min(v, 2000);
+  debouncedRunProny();
+}
+
+// ── Column selectors ─────────────────────────────────────────────────
+// updateColumnSelectors only populates options when they don't exist yet,
+// and PRESERVES the user's current selection otherwise.
+function updateColumnSelectors(headers, forceReset) {
+  const row  = document.getElementById('col-select-row');
+  const selT = document.getElementById('col-time');
+  const selS = document.getElementById('col-signal');
+
+  const isNew = selT.options.length !== headers.length ||
+                (selT.options[0] && selT.options[0].text !== headers[0]);
+
+  if (isNew || forceReset) {
+    selT.innerHTML = selS.innerHTML = '';
+    headers.forEach((h, i) => {
+      selT.add(new Option(h, i));
+      selS.add(new Option(h, i));
+    });
+    // Reset selections only on first load / column count change
+    selectedTimeCol   = 0;
+    selectedSignalCol = Math.min(1, headers.length - 1);
+    selT.value = selectedTimeCol;
+    selS.value = selectedSignalCol;
+  }
+
+  row.classList.toggle('visible', headers.length > 2);
+  document.getElementById('st-columns').style.display = '';
+  document.getElementById('st-col-count').textContent = headers.length;
+}
+
+// Called whenever user changes the dropdowns — re-run without full reparse
+function onColumnChange() {
+  selectedTimeCol   = parseInt(document.getElementById('col-time').value);
+  selectedSignalCol = parseInt(document.getElementById('col-signal').value);
+  if (parsedColumns) {
+    runWithColumns();
+  }
+}
+
+// ── Mode toggles ─────────────────────────────────────────────────────
+function toggleProny() {
+  const on = document.getElementById('use-prony').checked;
+  document.getElementById('prony-panel').classList.toggle('visible', on);
+  if (!on) {
+    document.getElementById('prony-window-strip').classList.remove('visible');
+    if (windowModeActive) toggleWindowMode();
+  }
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    t.classList.toggle('active', ['signal','psd','metrics'][i] === name);
+  });
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  if (name === 'signal' && chart)    { resizeChart(); chart.resize(); }
+  if (name === 'psd'    && psdChart) { resizePSD();  psdChart.resize(); }
+}
+
+function clearInput() { document.getElementById('input-box').value = ''; cachedSignal = null; }
+
+// Sample data: damped oscillation ζ=0.15, f=0.4 Hz
+function loadSample() {
+  const lines = ['# Sample: damped inter-area oscillation  f=0.40 Hz  zeta=0.15'];
+  const f = 0.40, zeta = 0.15, omega = 2 * Math.PI * f, sigma = zeta * omega;
+  for (let i = 0; i <= 500; i++) {
+    const t = (i * 0.04).toFixed(3);
+    const v = (500 + 80 * Math.exp(-sigma * i * 0.04) * Math.cos(omega * i * 0.04) + (Math.random() - 0.5) * 1.5).toFixed(4);
+    lines.push(t + '   ' + v);
+  }
+  document.getElementById('input-box').value = lines.join('\n');
+  // Reset column tracking so sample always starts fresh
+  parsedColumns = null;
+  selectedTimeCol = 0; selectedSignalCol = 1;
+}
+
+// ── Chart initialisation ─────────────────────────────────────────────
+function chartColors() {
+  return isDark
+    ? { grid:'#1a2030', tick:'#64748b', legend:'#94a3b8', ttBg:'#131720', ttBorder:'#252d40', ttTitle:'#e2e8f0', ttBody:'#94a3b8' }
+    : { grid:'#e2e8f0', tick:'#64748b', legend:'#334155', ttBg:'#ffffff', ttBorder:'#cbd5e1', ttTitle:'#0f172a', ttBody:'#475569' };
+}
+
+function initChart() {
+  if (chart) return;
+  const cc  = chartColors();
+  const ctx = document.getElementById('main-chart').getContext('2d');
+  chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      datasets: [
+        { label:'Original Signal',  data:[], borderColor:'#3b82f6', borderWidth:1.5, pointRadius:0, tension:0, fill:false },
+        { label:'Smoothed Signal',  data:[], borderColor:'#f59e0b', borderWidth:1.5, pointRadius:0, tension:0, fill:false },
+        { label:'Peaks',            data:[], borderColor:'#ef4444', backgroundColor:'#ef4444', pointRadius:6, showLine:false },
+        { label:'Prony Fit',        data:[], borderColor:'#22d3ee', borderWidth:2, borderDash:[5,3], pointRadius:0, tension:0, fill:false },
+        { label:'Decay Envelope',   data:[], borderColor:'#a855f7', borderWidth:1.5, borderDash:[3,3], pointRadius:0, tension:0, fill:false },
+        { label:'Analysis Window',  data:[], borderColor:'rgba(59,130,246,0.15)', backgroundColor:'rgba(59,130,246,0.10)', fill:true, pointRadius:0, borderWidth:0, tension:0 },
+      ],
+    },
+    options: {
+      animation: false, responsive: true, maintainAspectRatio: false,
+      interaction: { mode:'index', intersect:false },
+      plugins: {
+        legend:  { labels:{ color:cc.legend, font:{ family:'JetBrains Mono', size:10 } } },
+        tooltip: { backgroundColor:cc.ttBg, borderColor:cc.ttBorder, borderWidth:1,
+          titleColor:cc.ttTitle, bodyColor:cc.ttBody,
+          titleFont:{ family:'JetBrains Mono' }, bodyFont:{ family:'JetBrains Mono' },
+          callbacks: { label: ctx => ` ${ctx.dataset.label}: ${typeof ctx.raw==='object'?ctx.raw.y?.toFixed(4):ctx.raw}` }
+        },
+      },
+      scales: {
+        x: { type:'linear', title:{ display:true, text:'Time (s)', color:cc.tick, font:{ family:'JetBrains Mono', size:10 } },
+          ticks:{ color:cc.tick, font:{ family:'JetBrains Mono', size:9 }, maxTicksLimit:12 }, grid:{ color:cc.grid } },
+        y: { title:{ display:true, text:'MW', color:cc.tick, font:{ family:'JetBrains Mono', size:10 } },
+          ticks:{ color:cc.tick, font:{ family:'JetBrains Mono', size:9 } }, grid:{ color:cc.grid } },
+      },
+    },
+  });
+}
+
+function initPSDChart() {
+  if (psdChart) return;
+  const cc  = chartColors();
+  const ctx = document.getElementById('psd-chart').getContext('2d');
+  psdChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      datasets: [
+        { label:'Power Spectral Density', data:[], borderColor:'#22d3ee', borderWidth:1.5,
+          backgroundColor:'rgba(34,211,238,0.08)', fill:true, pointRadius:0, tension:0.2 },
+        { label:'Dominant Frequency', data:[], borderColor:'#ef4444', borderWidth:2,
+          borderDash:[4,3], pointRadius:0, tension:0, fill:false },
+      ],
+    },
+    options: {
+      animation: false, responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend:  { labels:{ color:cc.legend, font:{ family:'JetBrains Mono', size:10 } } },
+        tooltip: { backgroundColor:cc.ttBg, borderColor:cc.ttBorder, borderWidth:1,
+          titleColor:cc.ttTitle, bodyColor:cc.ttBody,
+          titleFont:{ family:'JetBrains Mono' }, bodyFont:{ family:'JetBrains Mono' },
+          callbacks: {
+            title: items => `f = ${items[0]?.raw?.x?.toFixed(4)} Hz`,
+            label: ctx  => ` PSD: ${ctx.raw?.y?.toExponential(3)}`
+          }
+        },
+      },
+      scales: {
+        x: { type:'linear', title:{ display:true, text:'Frequency (Hz)', color:cc.tick, font:{ family:'JetBrains Mono', size:10 } },
+          ticks:{ color:cc.tick, font:{ family:'JetBrains Mono', size:9 } }, grid:{ color:cc.grid }, min:0, max:5 },
+        y: { type:'logarithmic', title:{ display:true, text:'PSD (MW²/Hz)', color:cc.tick, font:{ family:'JetBrains Mono', size:10 } },
+          ticks:{ color:cc.tick, font:{ family:'JetBrains Mono', size:9 }, callback: v => v.toExponential(0) }, grid:{ color:cc.grid } },
+      },
+    },
+  });
+}
+
+// ── Chart data update ────────────────────────────────────────────────
+function updateChart(signalData, peakResult, pronyResult) {
+  initChart();
+  const { time, raw, smoothed, steadyStateOffset: off } = signalData;
+
+  chart.data.datasets[0].data = Array.from(raw).map((v, i) => ({ x: time[i], y: v }));
+  chart.data.datasets[1].data = Array.from(smoothed).map((v, i) => ({ x: time[i], y: v + off }));
+
+  if (peakResult) {
+    chart.data.datasets[2].data   = peakResult.peakTimes.map((t, i) => ({ x: t, y: peakResult.peakValues[i] + off }));
+    chart.data.datasets[2].hidden = false;
+  } else {
+    chart.data.datasets[2].data = []; chart.data.datasets[2].hidden = true;
+  }
+
+  if (pronyResult) {
+    chart.data.datasets[3].data   = Array.from(pronyResult.fittedSignal).map((v, i) => ({ x: time[i], y: v + off }));
+    chart.data.datasets[3].label  = `Prony Fit (R²=${pronyResult.rSquared.toFixed(4)})`;
+    chart.data.datasets[3].hidden = false;
+  } else {
+    chart.data.datasets[3].data = []; chart.data.datasets[3].hidden = true;
+  }
+
+  if (peakResult?.envelope) {
+    const env = peakResult.envelope;
+    const t0 = time[0], tN = time[time.length - 1];
+    const pts = [];
+    for (let t = t0; t <= tN; t += (tN - t0) / 200)
+      pts.push({ x: t, y: env.A * Math.exp(-env.sigma * t) + off });
+    chart.data.datasets[4].data   = pts;
+    chart.data.datasets[4].hidden = false;
+  } else {
+    chart.data.datasets[4].data = []; chart.data.datasets[4].hidden = true;
+  }
+
+  if (pronyResult) {
+    const t0 = time[pronyResult.activeStart];
+    const t1 = time[Math.min(pronyResult.activeEnd, time.length - 1)];
+    const yMax = Math.max(...Array.from(raw));
+    chart.data.datasets[5].data   = [{ x: t0, y: yMax * 1.05 }, { x: t1, y: yMax * 1.05 }];
+    chart.data.datasets[5].hidden = false;
+  } else {
+    chart.data.datasets[5].data = []; chart.data.datasets[5].hidden = true;
+  }
+
+  chart.update('none');
+}
+
+function updatePSD(signalData) {
+  initPSDChart();
+  const dt = signalData.time.length > 1 ? signalData.time[1] - signalData.time[0] : 1;
+  const { freqs, psd, fs } = computePSD(Array.from(signalData.detrended), dt);   // from damping-tool.js
+
+  const maxFreq = Math.min(5, fs / 2);
+  const fData = [];
+  for (let i = 0; i < freqs.length; i++) {
+    if (freqs[i] > maxFreq) break;
+    fData.push({ x: freqs[i], y: Math.max(psd[i], 1e-20) });
+  }
+
+  let domIdx = 0;
+  for (let i = 1; i < fData.length; i++) if (fData[i].y > fData[domIdx].y) domIdx = i;
+  const domFreq = fData[domIdx]?.x ?? 0;
+  const snr     = estimateSNR(fData.map(d => d.y), domIdx);
+
+  psdChart.data.datasets[0].data = fData;
+  psdChart.data.datasets[1].data = [{ x: domFreq, y: fData[0]?.y ?? 1e-10 }, { x: domFreq, y: fData[domIdx]?.y ?? 1 }];
+  psdChart.options.scales.x.max  = maxFreq;
+  psdChart.update('none');
+
+  document.getElementById('psd-dom').textContent = domFreq.toFixed(4) + ' Hz';
+  document.getElementById('psd-snr').textContent = snr != null ? snr.toFixed(1) : '—';
+  document.getElementById('psd-nyq').textContent = (fs / 2).toFixed(2);
+}
+
+// ── Metrics Dashboard ────────────────────────────────────────────────
+function card(label, value, unit, sub, extraClass) {
+  const cls = extraClass ? ` ${extraClass}` : '';
+  return `<div class="metric-card${cls}">
+    <div class="mc-label">${label}</div>
+    <div class="mc-value ${extraClass||''}">${value}</div>
+    <div class="mc-unit">${unit}</div>
+    ${sub ? `<div class="mc-sub">${sub}</div>` : ''}
+  </div>`;
+}
+
+function buildMetricsDashboard(peakRes, pronyRes) {
+  const panel = document.getElementById('metrics-panel');
+  let html = '';
+
+  if (peakRes) {
+    const zetaPass = peakRes.avgDampingRatio >= COMPLIANCE_MIN_DAMPING;
+    const halfPass = peakRes.avgHalvingTime  <= COMPLIANCE_MAX_HALVING_T;
+    html += `<div class="section-title">Peak Envelope — IEEE/NERC Compliance</div>`;
+    html += card('Avg Damping Ratio ζ', (peakRes.avgDampingRatio*100).toFixed(2)+'%', '(≥ 10% required)',
+      `σ = ${peakRes.stdDampingRatio.toFixed(4)} std dev`, zetaPass?'pass':'fail');
+    html += card('Avg Halving Time T½', peakRes.avgHalvingTime===Infinity?'∞':peakRes.avgHalvingTime.toFixed(3),
+      's (≤ 5.0 s required)', '', halfPass?'pass':'fail');
+    html += card('Avg Damping Rate σ', peakRes.avgSigma.toFixed(4), 'Np/s', '');
+    html += card('Oscillation Frequency', peakRes.avgFrequency.toFixed(4), 'Hz',
+      `σ_f = ${peakRes.stdFrequency.toFixed(4)} Hz`);
+    if (peakRes.envelope)
+      html += card('Envelope Fit A', peakRes.envelope.A.toFixed(4), 'MW (initial amplitude)',
+        `σ_env = ${peakRes.envelope.sigma.toFixed(4)} Np/s`);
+    html += card('Pairs Analysed', peakRes.pairs.length, 'peak pairs', '');
+    html += card('Overall Result', zetaPass&&halfPass?'COMPLIANT':'NON-COMPLIANT', '',
+      'IEEE/NERC inter-area criterion', zetaPass&&halfPass?'pass':'fail');
+  }
+
+  if (pronyRes) {
+    const showAll      = document.getElementById('prony-show-all').checked;
+    const displayModes = showAll ? pronyRes.allModes : pronyRes.modes;
+    html += `<div class="section-title">Prony Analysis${showAll?' — All Modes':` — Dominant Modes [${pronyRes.freqMin.toFixed(2)}–${pronyRes.freqMax.toFixed(2)} Hz]`}</div>`;
+    html += card('Model R²', pronyRes.rSquared.toFixed(6), 'goodness of fit',
+      pronyRes.rSquared>0.95?'Excellent fit':pronyRes.rSquared>0.80?'Good fit':'Poor fit — try more modes',
+      pronyRes.rSquared>0.80?'pass':'warn');
+    html += card('RMSE', pronyRes.rmse.toFixed(4), 'MW (fit error)', '');
+    html += card('Dominant Modes', pronyRes.modes.length, `in [${pronyRes.freqMin.toFixed(2)}–${pronyRes.freqMax.toFixed(2)}] Hz`,
+      pronyRes.allModes.length > pronyRes.modes.length
+        ? `${pronyRes.allModes.length - pronyRes.modes.length} more outside band` : '');
+    html += card('Total Modes', pronyRes.allModes.length, `of ${document.getElementById('sl-modes').value} requested`, '');
+
+    displayModes.forEach((m, i) => {
+      let flagClass = '', flagNote = '';
+      if (!m.inBand)             { flagClass='warn'; flagNote='out-of-band'; }
+      else if (!m.isDamped)      { flagClass='fail'; flagNote='negative damping'; }
+      else if (m.dampingRatio < 0.10) flagClass='warn';
+      html += card(`${showAll?'Mode':'Dom. Mode'} ${i+1}`, m.frequencyHz.toFixed(4), 'Hz',
+        `ζ=${(m.dampingRatio*100).toFixed(2)}%  σ=${m.dampingRate.toFixed(4)} Np/s  T=${m.period.toFixed(3)}s${flagNote?' · '+flagNote:''}`,
+        flagClass);
+    });
+  }
+
+  if (!peakRes && !pronyRes)
+    html = '<div style="color:var(--muted);font-size:11px;padding:20px">Run a calculation to populate the metrics dashboard.</div>';
+
+  panel.innerHTML = html;
+}
+
+// ── CSV Export ───────────────────────────────────────────────────────
+function exportCSV() {
+  if (!lastExportData) { showToast('No results to export. Run Calculate first.'); return; }
+  const { headers, rows } = lastExportData;
+  const blob = new Blob([[headers.join(','), ...rows.map(r => r.join(','))].join('\n')], { type:'text/csv' });
+  const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `damping_results_${lastExportData.type}_${Date.now()}.csv` });
+  a.click(); URL.revokeObjectURL(a.href);
+}
+
+function setPeakExportData(result) {
+  const headers = ['Pair','Time1_s','Peak1_MW','Time2_s','Peak2_MW','LogDecrement','Sigma_Nps','DampingRatio','Freq_Hz','HalvingTime_s'];
+  const rows = result.pairs.map(p => [
+    p.pairIndex, p.time1.toFixed(6), p.peak1.toFixed(6), p.time2.toFixed(6), p.peak2.toFixed(6),
+    p.logDecrement.toFixed(8), p.sigma.toFixed(8), p.dampingRatio.toFixed(8),
+    p.frequencyHz.toFixed(6), p.halvingTime === Infinity ? 'Inf' : p.halvingTime.toFixed(6),
+  ]);
+  rows.push(['AVG','','','','','',result.avgSigma.toFixed(8),result.avgDampingRatio.toFixed(8),result.avgFrequency.toFixed(6),result.avgHalvingTime.toFixed(6)]);
+  lastExportData = { type:'peak', headers, rows };
+}
+
+function setPronyExportData(result) {
+  const showAll = document.getElementById('prony-show-all').checked;
+  const modes   = showAll ? result.allModes : result.modes;
+  const headers = ['Mode','Amplitude_MW','Freq_Hz','Period_s','DampingRate_Nps','DampingRatio','InBand','Flag'];
+  const rows    = modes.map(m => [
+    m.index, m.amplitude.toFixed(8), m.frequencyHz.toFixed(6), m.period.toFixed(6),
+    m.dampingRate.toFixed(6), m.dampingRatio.toFixed(6), m.inBand?'YES':'NO',
+    !m.inBand?'OUT_OF_BAND':(!m.isDamped?'NEG_DAMP':m.dampingRatio<0.10?'LOW_DAMPING':(m.unstable?'OVERDAMPED':'OK')),
+  ]);
+  lastExportData = { type:'prony', headers, rows };
+}
+
+// ── File loading ─────────────────────────────────────────────────────
+document.getElementById('file-input').addEventListener('change', function () {
+  const file = this.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const content = e.target.result;
+    document.getElementById('input-box').value = content;
+    // Parse to detect columns but force reset since it's a new file
+    try {
+      parsedColumns = parseAllColumns(content);
+      updateColumnSelectors(parsedColumns.headers, true);
+    } catch (err) {}
+  };
+  reader.readAsText(file); this.value = '';
+});
+
+// ── Main Calculate ───────────────────────────────────────────────────
+function calculate() {
+  const rawText    = document.getElementById('input-box').value;
+  const smoothWin  = parseInt(document.getElementById('smooth-win').value) || 3;
+  const useOffset  = document.getElementById('use-offset').checked;
+  const useProny   = document.getElementById('use-prony').checked;
+
+  let time, vals;
+  try {
+    const freshParse = parseAllColumns(rawText);     // from damping-tool.js
+    // Only update selectors when column structure changes
+    updateColumnSelectors(freshParse.headers, !parsedColumns ||
+      parsedColumns.headers.length !== freshParse.headers.length);
+    parsedColumns = freshParse;
+
+    // Use saved selection indices
+    time = parsedColumns.columns[selectedTimeCol];
+    vals = parsedColumns.columns[selectedSignalCol];
+    if (!time || !vals) throw new Error('Column index out of range.');
+  } catch (e) { showToast('Parse error: ' + e.message); return; }
+
+  const sampInfo = checkUniformSampling(time);      // from damping-tool.js
+  document.getElementById('st-nonuniform').style.display = sampInfo.uniform ? 'none' : '';
+
+  let signalData;
+  try { signalData = preprocess(time, vals, useOffset, smoothWin); }  // from damping-tool.js
+  catch (e) { showToast('Pre-processing error: ' + e.message); return; }
+  cachedSignal = signalData;
+
+  setStatus(time.length, time[time.length - 1] - time[0], sampInfo.dt, useProny ? 'Prony' : 'Peak Envelope');
+  updatePSD(signalData);
+
+  if (useProny) runPronyAndDisplay();
+  else          runPeakAndDisplay();
+}
+
+// Re-run analysis with currently selected columns (no reparsing)
+function runWithColumns() {
+  if (!parsedColumns || !cachedSignal) { calculate(); return; }
+  const useOffset = document.getElementById('use-offset').checked;
+  const smoothWin = parseInt(document.getElementById('smooth-win').value) || 3;
+  const useProny  = document.getElementById('use-prony').checked;
+
+  const time = parsedColumns.columns[selectedTimeCol];
+  const vals = parsedColumns.columns[selectedSignalCol];
+  if (!time || !vals) { showToast('Invalid column selection.'); return; }
+
+  const sampInfo = checkUniformSampling(time);
+  let signalData;
+  try { signalData = preprocess(time, vals, useOffset, smoothWin); }
+  catch (e) { showToast('Pre-processing error: ' + e.message); return; }
+  cachedSignal = signalData;
+
+  setStatus(time.length, time[time.length - 1] - time[0], sampInfo.dt, useProny ? 'Prony' : 'Peak Envelope');
+  updatePSD(signalData);
+
+  if (useProny) runPronyAndDisplay();
+  else          runPeakAndDisplay();
+}
+
+function runPeakAndDisplay() {
+  const numPeaks   = parseInt(document.getElementById('num-peaks').value)    || 6;
+  const prominence = parseFloat(document.getElementById('prominence').value) || 0.005;
+  let result;
+  try { result = runPeakEnvelope(cachedSignal, numPeaks, prominence); }  // from damping-tool.js
+  catch (e) { showToast('Peak detection error: ' + e.message); return; }
+
+  cachedPeakRes = result; cachedPronyRes = null;
+  writeOutput(fmtPeakResult(result));                                    // from damping-tool.js
+  updateChart(cachedSignal, result, null);
+  syncHandleCanvas();
+  setPeakExportData(result);
+  buildMetricsDashboard(result, null);
+  document.getElementById('st-r2-wrap').style.display  = 'none';
+  document.getElementById('st-rmse-wrap').style.display = 'none';
+}
+
+function runPronyAndDisplay() {
+  if (!cachedSignal) return;
+  const numModes   = parseInt(document.getElementById('sl-modes').value)   || 3;
+  const windowLen  = parseInt(document.getElementById('num-window').value) ||
+                     parseInt(document.getElementById('sl-window').value)  || 237;
+  const energyPct  = (parseInt(document.getElementById('sl-energy').value) || 1) / 100;
+  const freqMin    = parseFloat(document.getElementById('prony-freq-min').value) || 0.10;
+  const freqMax    = parseFloat(document.getElementById('prony-freq-max').value) || 5.00;
+  const pronySmooth    = document.getElementById('prony-smooth-on').checked;
+  const pronySmoothWin = parseInt(document.getElementById('prony-smooth-win').value) || 5;
+  const showAll    = document.getElementById('prony-show-all').checked;
+
+  let result;
+  try {
+    // runProny is defined in damping-tool.js; we pass all params explicitly
+    result = runProny(cachedSignal, numModes, windowLen, energyPct,
+                      freqMin, freqMax, pronySmooth, pronySmoothWin,
+                      manualWindowT0, manualWindowT1);
+  } catch (e) { showToast('Prony error: ' + e.message); writeOutput('Prony error: ' + e.message); return; }
+
+  cachedPronyRes = result; cachedPeakRes = null;
+  writeOutput(fmtPronyResult(result, numModes, windowLen, cachedSignal, showAll)); // from damping-tool.js
+  updateChart(cachedSignal, null, result);
+  syncHandleCanvas();
+  setPronyExportData(result);
+  buildMetricsDashboard(null, result);
+  document.getElementById('st-r2-wrap').style.display  = '';
+  document.getElementById('st-rmse-wrap').style.display = '';
+  document.getElementById('st-r2').textContent   = result.rSquared.toFixed(6);
+  document.getElementById('st-rmse').textContent = result.rmse.toFixed(4) + ' MW';
+}
+
+function debouncedRunProny() {
+  clearTimeout(debounceId);
+  debounceId = setTimeout(() => {
+    if (cachedSignal && document.getElementById('use-prony').checked) runPronyAndDisplay();
+  }, 80);
+}
+
+// ── Theme toggle ─────────────────────────────────────────────────────
+function toggleTheme() {
+  isDark = !isDark;
+  document.documentElement.classList.toggle('dark', isDark);
+  document.getElementById('theme-icon').textContent  = isDark ? '☀️' : '🌙';
+  document.getElementById('theme-label').textContent = isDark ? 'Light' : 'Dark';
+
+  const cc = chartColors();
+  [chart, psdChart].forEach(ch => {
+    if (!ch) return;
+    ch.options.scales.x.grid.color = cc.grid; ch.options.scales.y.grid.color = cc.grid;
+    ch.options.scales.x.ticks.color = cc.tick; ch.options.scales.y.ticks.color = cc.tick;
+    ch.options.scales.x.title.color = cc.tick; ch.options.scales.y.title.color = cc.tick;
+    ch.options.plugins.legend.labels.color      = cc.legend;
+    ch.options.plugins.tooltip.backgroundColor  = cc.ttBg;
+    ch.options.plugins.tooltip.borderColor      = cc.ttBorder;
+    ch.options.plugins.tooltip.titleColor       = cc.ttTitle;
+    ch.options.plugins.tooltip.bodyColor        = cc.ttBody;
+    ch.update('none');
+  });
+
+  if (chart) {
+    chart.data.datasets[0].borderColor = isDark ? '#3b82f6' : '#2563eb';
+    chart.data.datasets[1].borderColor = isDark ? '#f59e0b' : '#d97706';
+    chart.data.datasets[2].borderColor = chart.data.datasets[2].backgroundColor = isDark ? '#ef4444' : '#dc2626';
+    chart.data.datasets[3].borderColor = isDark ? '#22d3ee' : '#0891b2';
+    chart.data.datasets[4].borderColor = isDark ? '#a855f7' : '#7c3aed';
+    chart.data.datasets[5].borderColor = isDark ? 'rgba(59,130,246,0.15)' : 'rgba(37,99,235,0.15)';
+    chart.data.datasets[5].backgroundColor = isDark ? 'rgba(59,130,246,0.10)' : 'rgba(37,99,235,0.08)';
+    chart.update('none');
+  }
+}
+
+// ── Prony window handle overlay ──────────────────────────────────────
+function updateWindowStrip() {
+  if (manualWindowT0 === null || !cachedSignal) return;
+  const t   = cachedSignal.time;
+  const dt  = t.length > 1 ? t[1] - t[0] : 0;
+  const dur = manualWindowT1 - manualWindowT0;
+  document.getElementById('pw-t0').textContent  = manualWindowT0.toFixed(4);
+  document.getElementById('pw-t1').textContent  = manualWindowT1.toFixed(4);
+  document.getElementById('pw-n').textContent   = dt > 0 ? Math.round(dur / dt) : '—';
+  document.getElementById('pw-dur').textContent = dur.toFixed(4);
+  document.getElementById('prony-window-strip').classList.add('visible');
+}
+
+function setChartMode(mode) {
+  chartMode = mode;
+  document.getElementById('tb-pan').classList.toggle('active',  mode === 'pan');
+  document.getElementById('tb-zoom').classList.toggle('active', mode === 'zoom');
+  if (!chart) return;
+  chart.options.plugins.zoom.pan.enabled = (mode === 'pan' && !windowModeActive);
+  chart.options.plugins.zoom.zoom.drag   = mode === 'zoom'
+    ? { enabled: true, backgroundColor: 'rgba(59,130,246,0.15)', borderColor: '#3b82f6', borderWidth: 1 }
+    : { enabled: false };
+  chart.update('none');
+}
+
+function resetZoom() { if (chart) { chart.resetZoom(); syncHandleCanvas(); } }
+
+function toggleWindowMode() {
+  windowModeActive = !windowModeActive;
+  const btn = document.getElementById('tb-window');
+  const hc  = document.getElementById('handle-canvas');
+  btn.classList.toggle('active', windowModeActive);
+  hc.classList.toggle('active', windowModeActive);
+  if (chart) {
+    chart.options.plugins.zoom.pan.enabled = (!windowModeActive && chartMode === 'pan');
+    chart.update('none');
+  }
+  if (windowModeActive && cachedSignal && manualWindowT0 === null) {
+    const t = cachedSignal.time;
+    manualWindowT0 = cachedPronyRes ? t[cachedPronyRes.activeStart] : t[0];
+    manualWindowT1 = cachedPronyRes ? t[Math.min(cachedPronyRes.activeEnd, t.length - 1)] : t[t.length - 1];
+  }
+  syncHandleCanvas();
+  if (windowModeActive) updateWindowStrip();
+}
+
+function clearWindowSelection() {
+  manualWindowT0 = null; manualWindowT1 = null;
+  if (windowModeActive) toggleWindowMode();
+  syncHandleCanvas();
+  document.getElementById('prony-window-strip').classList.remove('visible');
+  showToast('Manual window cleared — auto-detection will be used.');
+}
+
+function syncHandleCanvas() {
+  const hc      = document.getElementById('handle-canvas');
+  const chartEl = document.getElementById('main-chart');
+  hc.width  = chartEl.width;
+  hc.height = chartEl.height;
+  hc.style.width  = chartEl.style.width  || chartEl.offsetWidth  + 'px';
+  hc.style.height = chartEl.style.height || chartEl.offsetHeight + 'px';
+
+  const ctx = hc.getContext('2d');
+  ctx.clearRect(0, 0, hc.width, hc.height);
+  if (!chart || (!windowModeActive && manualWindowT0 === null)) return;
+
+  const t0 = manualWindowT0, t1 = manualWindowT1;
+  if (t0 === null || t1 === null) return;
+
+  const area   = chart.chartArea;
+  const xScale = chart.scales.x;
+  const x0     = xScale.getPixelForValue(t0);
+  const x1     = xScale.getPixelForValue(t1);
+
+  ctx.save();
+  ctx.fillStyle = isDark ? 'rgba(59,130,246,0.10)' : 'rgba(37,99,235,0.08)';
+  ctx.fillRect(x0, area.top, x1 - x0, area.bottom - area.top);
+  ctx.restore();
+
+  drawHandle(ctx, x0, area.top, area.bottom, '#22d3ee', t0, true);
+  drawHandle(ctx, x1, area.top, area.bottom, '#f59e0b', t1, false);
+}
+
+function drawHandle(ctx, x, top, bot, color, tVal, isLeft) {
+  const isHover    = hdl.hoverHandle === (isLeft ? 'left' : 'right');
+  const isDragging = hdl.dragging    === (isLeft ? 'left' : 'right');
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth   = (isDragging || isHover) ? 2.5 : 1.5;
+  ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, bot); ctx.stroke();
+
+  const tw = 8, th = 14;
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  if (isLeft) { ctx.moveTo(x, top+th); ctx.lineTo(x+tw, top); ctx.lineTo(x, top); }
+  else        { ctx.moveTo(x, top+th); ctx.lineTo(x-tw, top); ctx.lineTo(x, top); }
+  ctx.closePath(); ctx.fill();
+
+  const tag  = tVal.toFixed(3) + 's';
+  ctx.font   = 'bold 9px JetBrains Mono, monospace';
+  const tw2  = ctx.measureText(tag).width + 8;
+  const tx   = isLeft ? x + 2 : x - tw2 - 2;
+  ctx.fillStyle = color;
+  ctx.fillRect(tx, top + 16, tw2, 14);
+  ctx.fillStyle = '#000';
+  ctx.fillText(tag, tx + 4, top + 26);
+  ctx.restore();
+}
+
+function hitHandle(pixX) {
+  if (!chart || manualWindowT0 === null) return null;
+  const xScale = chart.scales.x;
+  const x0 = xScale.getPixelForValue(manualWindowT0);
+  const x1 = xScale.getPixelForValue(manualWindowT1);
+  if (Math.abs(pixX - x0) < 10) return 'left';
+  if (Math.abs(pixX - x1) < 10) return 'right';
+  return null;
+}
+
+// Mouse events for window handle dragging
+(function setupHandleEvents() {
+  window.addEventListener('load', () => {
+    const hc = document.getElementById('handle-canvas');
+
+    function getCanvasX(e) {
+      const rect = hc.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      return (clientX - rect.left) * (hc.width / rect.width);
+    }
+
+    hc.addEventListener('mousemove', e => {
+      if (!windowModeActive) return;
+      const x = getCanvasX(e);
+      if (hdl.dragging) {
+        const t = Math.max(cachedSignal.time[0],
+          Math.min(cachedSignal.time[cachedSignal.time.length - 1], chart.scales.x.getValueForPixel(x)));
+        if (hdl.dragging === 'left')  manualWindowT0 = Math.min(t, manualWindowT1 - 0.001);
+        else                          manualWindowT1 = Math.max(t, manualWindowT0 + 0.001);
+        syncHandleCanvas();
+        updateWindowStrip();
+        debouncedRunProny();
+      } else {
+        const hit = hitHandle(x);
+        hdl.hoverHandle = hit;
+        hc.style.cursor = hit ? 'ew-resize' : (windowModeActive ? 'crosshair' : 'default');
+        syncHandleCanvas();
+      }
+    });
+
+    hc.addEventListener('mousedown', e => {
+      if (!windowModeActive) return;
+      const hit = hitHandle(getCanvasX(e));
+      if (hit) { hdl.dragging = hit; e.preventDefault(); }
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (hdl.dragging) {
+        hdl.dragging = null;
+        syncHandleCanvas();
+        if (cachedSignal && document.getElementById('use-prony').checked) runPronyAndDisplay();
+      }
+    });
+
+    // Scroll-to-zoom
+    document.getElementById('chart-container').addEventListener('wheel', e => {
+      if (!chart) return;
+      e.preventDefault();
+      const factor = e.deltaY > 0 ? 1.1 : 0.9;
+      if (e.shiftKey) {
+        const { min, max } = chart.scales.x;
+        const mid = (min+max)/2, half = (max-min)/2*factor;
+        chart.options.scales.x.min = mid - half; chart.options.scales.x.max = mid + half;
+      } else {
+        const { min, max } = chart.scales.y;
+        const mid = (min+max)/2, half = (max-min)/2*factor;
+        chart.options.scales.y.min = mid - half; chart.options.scales.y.max = mid + half;
+      }
+      chart.update('none'); syncHandleCanvas();
+    }, { passive: false });
+
+    // Drag-to-pan
+    let panStart = null;
+    const mc = document.getElementById('main-chart');
+    mc.addEventListener('mousedown', e => {
+      if (chartMode !== 'pan' || windowModeActive) return;
+      panStart = { x: e.clientX, y: e.clientY,
+        xMin: chart.scales.x.min, xMax: chart.scales.x.max,
+        yMin: chart.scales.y.min, yMax: chart.scales.y.max };
+      mc.style.cursor = 'grabbing';
+    });
+    window.addEventListener('mousemove', e => {
+      if (!panStart) return;
+      const area   = chart.chartArea;
+      const xRange = panStart.xMax - panStart.xMin;
+      const yRange = panStart.yMax - panStart.yMin;
+      chart.options.scales.x.min = panStart.xMin - (e.clientX - panStart.x) * xRange / (area.right  - area.left);
+      chart.options.scales.x.max = panStart.xMax - (e.clientX - panStart.x) * xRange / (area.right  - area.left);
+      chart.options.scales.y.min = panStart.yMin + (e.clientY - panStart.y) * yRange / (area.bottom - area.top);
+      chart.options.scales.y.max = panStart.yMax + (e.clientY - panStart.y) * yRange / (area.bottom - area.top);
+      chart.update('none'); syncHandleCanvas();
+    });
+    window.addEventListener('mouseup', () => { if (panStart) { panStart = null; mc.style.cursor = 'grab'; } });
+    mc.style.cursor = 'grab';
+  });
+})();
+
+// ── Resize ───────────────────────────────────────────────────────────
+function resizeChart() {
+  const p = document.getElementById('chart-container');
+  document.getElementById('main-chart').style.height = (p.clientHeight - 10) + 'px';
+  if (chart) { chart.resize(); syncHandleCanvas(); }
+}
+function resizePSD() {
+  const p = document.getElementById('psd-container');
+  document.getElementById('psd-chart').style.height = (p.clientHeight - 10) + 'px';
+  if (psdChart) psdChart.resize();
+}
+
+window.addEventListener('resize', () => { resizeChart(); resizePSD(); });
+window.addEventListener('load',   () => { initChart(); initPSDChart(); resizeChart(); resizePSD(); });
+
+// Enter key shortcut
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.activeElement.tagName !== 'TEXTAREA') {
+    e.preventDefault(); calculate();
+  }
+});
+</script>
+</body>
+</html>
