@@ -243,6 +243,102 @@ canvas#psd-chart { display:block }
   z-index:100; pointer-events:none; display:none; margin-top:2px }
 
 #file-input { display:none }
+
+/* ── Tip strip ── */
+#tip-strip { background:var(--surface); border-bottom:1px solid var(--border);
+  padding:5px 18px; display:flex; align-items:center; gap:16px; flex-shrink:0;
+  font-size:10px; color:var(--muted) }
+.ts-method { display:flex; align-items:center; gap:5px }
+.ts-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0 }
+.ts-dot.done { background:var(--success) }
+.ts-dot.wait { background:var(--border) }
+.ts-label { font-size:10px }
+.ts-label.done { color:var(--text) }
+.ts-label.wait { color:var(--muted); opacity:.55 }
+.ts-sep { color:var(--border); margin:0 2px }
+#tip-strip .tip-badge { font-size:9px; font-weight:700; padding:2px 8px;
+  border-radius:10px; margin-left:auto; flex-shrink:0; white-space:nowrap }
+.tip-badge.none { background:var(--surface2); color:var(--muted) }
+.tip-badge.half { background:rgba(245,158,11,.15); color:var(--warn) }
+.tip-badge.full { background:rgba(22,163,74,.15);  color:var(--success) }
+
+/* ── Tab progress badge ── */
+.tab-badge { font-size:8px; font-weight:700; padding:1px 5px; border-radius:8px;
+  margin-left:5px; vertical-align:middle }
+.tab-badge.b0 { background:var(--border);            color:var(--muted) }
+.tab-badge.b1 { background:rgba(245,158,11,.2);      color:var(--warn) }
+.tab-badge.b2 { background:rgba(22,163,74,.2);       color:var(--success) }
+
+/* ── Comparison panel ── */
+#compare-panel { padding:0; overflow-y:auto; flex:1; display:flex; flex-direction:column }
+.cmp-empty { display:flex; flex-direction:column; align-items:center; justify-content:center;
+  padding:40px 20px; gap:16px; text-align:center; flex:1 }
+.cmp-empty-icon { font-size:32px; opacity:.3 }
+.cmp-empty-title { font-size:13px; font-weight:700; color:var(--text) }
+.cmp-empty-desc  { font-size:11px; color:var(--muted); max-width:340px; line-height:1.6 }
+.cmp-empty-steps { display:flex; flex-direction:column; gap:8px; width:100%; max-width:360px }
+.cmp-step { display:flex; align-items:center; gap:10px; padding:8px 12px;
+  border-radius:6px; border:1px solid var(--border); background:var(--surface);
+  font-size:11px; text-align:left }
+.cmp-step .cs-num { width:20px; height:20px; border-radius:50%; display:flex;
+  align-items:center; justify-content:center; font-size:10px; font-weight:700; flex-shrink:0 }
+.cmp-step.cs-done  { border-color:var(--success) }
+.cmp-step.cs-done  .cs-num  { background:var(--success); color:#fff }
+.cmp-step.cs-done  .cs-text { color:var(--muted); text-decoration:line-through }
+.cmp-step.cs-next  { border-color:var(--accent); background:rgba(37,99,235,.04) }
+.cmp-step.cs-next  .cs-num  { background:var(--accent); color:#fff }
+.cmp-step.cs-next  .cs-text { color:var(--text); font-weight:600 }
+.cmp-step.cs-wait  .cs-num  { background:var(--border); color:var(--muted) }
+.cmp-step.cs-wait  .cs-text { color:var(--muted); opacity:.5 }
+.cmp-header { display:flex; align-items:center; gap:10px; padding:10px 14px 8px;
+  border-bottom:1px solid var(--border); flex-shrink:0 }
+.cmp-header h2 { font-family:var(--sans); font-size:13px; font-weight:700;
+  color:var(--text); flex:1; margin:0 }
+.cmp-header .cmp-meta { font-size:9px; color:var(--muted) }
+.cmp-verdict { display:flex; align-items:flex-start; gap:10px; padding:10px 14px;
+  border-bottom:1px solid var(--border); flex-shrink:0 }
+.cmp-verdict-icon { font-size:18px; flex-shrink:0; margin-top:1px }
+.cmp-verdict-title { font-weight:700; color:var(--text); margin-bottom:2px; font-size:11px }
+.cmp-verdict-text  { font-size:10px; color:var(--muted); line-height:1.5 }
+.cmp-section-hdr { font-size:9px; font-weight:700; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--muted); padding:10px 14px 4px;
+  border-bottom:1px solid var(--border); background:var(--bg); flex-shrink:0 }
+.cmp-tbl-wrap { overflow-x:auto; padding:0 14px 12px }
+.cmp-tbl { width:100%; border-collapse:collapse; font-size:10px; font-family:var(--mono) }
+.cmp-tbl th { font-size:8px; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--muted); padding:5px 8px; text-align:right; border-bottom:1px solid var(--border);
+  white-space:nowrap }
+.cmp-tbl th:first-child { text-align:left }
+.cmp-tbl td { padding:4px 8px; border-bottom:1px solid var(--surface2);
+  color:var(--text); text-align:right; white-space:nowrap }
+.cmp-tbl td:first-child { text-align:left; color:var(--muted); font-size:9px }
+.cmp-tbl tr:last-child td { border-bottom:none }
+.cmp-tbl tr.avg-row td { border-top:1px solid var(--border); font-weight:700 }
+.cmp-tbl tr.avg-row td:first-child { color:var(--accent2) }
+.cmp-tbl .peak-col  { color:var(--accent) }
+.cmp-tbl .prony-col { color:var(--accent2) }
+.cmp-tbl .diff-ok   { color:var(--success) }
+.cmp-tbl .diff-warn { color:var(--warn) }
+.cmp-tbl .diff-bad  { color:var(--danger) }
+.cmp-tbl .flag-ok   { color:var(--success); font-weight:700 }
+.cmp-tbl .flag-warn { color:var(--warn);    font-weight:700 }
+.cmp-tbl .flag-bad  { color:var(--danger);  font-weight:700 }
+.cmp-compliance { display:grid; grid-template-columns:1fr 1fr; gap:1px;
+  background:var(--border); border:1px solid var(--border); border-radius:6px;
+  overflow:hidden; margin:0 14px 12px }
+.cmp-compliance-col { background:var(--surface); padding:10px 12px }
+.cmp-compliance-col h4 { font-size:9px; font-weight:700; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--muted); margin:0 0 8px }
+.cmp-comp-row { display:flex; justify-content:space-between; align-items:center;
+  padding:3px 0; border-bottom:1px solid var(--surface2); font-size:10px }
+.cmp-comp-row:last-child { border-bottom:none }
+.cmp-comp-label { color:var(--muted) }
+.cmp-comp-val { font-weight:700; font-family:var(--sans) }
+.cmp-comp-val.ok   { color:var(--success) }
+.cmp-comp-val.fail { color:var(--danger) }
+.cmp-comp-val.warn { color:var(--warn) }
+.cmp-legend { font-size:9px; color:var(--muted); padding:4px 14px 10px;
+  display:flex; gap:12px; flex-wrap:wrap }
 </style>
 </head>
 <body>
@@ -297,6 +393,15 @@ canvas#psd-chart { display:block }
     <label>Signal col:</label>
     <select id="col-signal" onchange="onColumnChange()"></select>
   </div>
+</div>
+
+<!-- ── Tip strip (always visible, context-aware) ── -->
+<div id="tip-strip">
+  <span style="font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-right:4px">Comparison</span>
+  <div class="ts-method"><div class="ts-dot wait" id="ts-dot-peak"></div><span class="ts-label wait" id="ts-lbl-peak">Peak Envelope</span></div>
+  <span class="ts-sep">·</span>
+  <div class="ts-method"><div class="ts-dot wait" id="ts-dot-prony"></div><span class="ts-label wait" id="ts-lbl-prony">Prony Analysis</span></div>
+  <span class="tip-badge none" id="tip-badge">Run both methods to compare</span>
 </div>
 
 <!-- ── Prony panel ── -->
@@ -393,7 +498,7 @@ Keyboard shortcut: press Enter (when not in text area) to run.</div>
       <div class="tab"         onclick="switchTab('psd')">PSD / Spectrum</div>
       <div class="tab"         onclick="switchTab('metrics')">Metrics Dashboard</div>
       <div class="tab"         onclick="switchTab('diagnostics')">Diagnostics</div>
-      <div class="tab" id="tab-compare-btn" style="display:none" onclick="switchTab('compare')">Comparison</div>
+      <div class="tab" id="tab-compare-btn" onclick="switchTab('compare')">◑ Comparison<span class="tab-badge b0" id="cmp-tab-badge">0/2</span></div>
     </div>
 
     <!-- Tab 1: signal chart -->
@@ -453,13 +558,20 @@ Keyboard shortcut: press Enter (when not in text area) to run.</div>
       </div>
     </div>
 
-    <!-- Tab 5: comparison (shown only when both methods run) -->
+    <!-- Tab 5: comparison -->
     <div id="tab-compare" class="tab-panel">
-      <div id="compare-panel" style="padding:14px;overflow-y:auto;flex:1">
-        <div style="color:var(--muted);font-size:11px;padding:20px">
-          Run both Peak Envelope and Prony analyses to compare results.
-          Switch between modes and run Calculate each time.
+      <div id="compare-panel">
+        <div class="cmp-empty" id="cmp-empty-state">
+          <div class="cmp-empty-icon">◑</div>
+          <div class="cmp-empty-title">Method Comparison</div>
+          <div class="cmp-empty-desc">Run both analysis methods on the same signal to compare frequency, damping, and compliance results side-by-side.</div>
+          <div class="cmp-empty-steps">
+            <div class="cmp-step cs-wait" id="cmp-s1"><div class="cs-num">1</div><div class="cs-text">Load signal data and click Calculate (Peak Envelope mode)</div></div>
+            <div class="cmp-step cs-wait" id="cmp-s2"><div class="cs-num">2</div><div class="cs-text">Enable Full Prony Analysis, click Calculate again</div></div>
+            <div class="cmp-step cs-wait" id="cmp-s3"><div class="cs-num">3</div><div class="cs-text">Results appear here automatically</div></div>
+          </div>
         </div>
+        <div id="cmp-content" style="display:none"></div>
       </div>
     </div>
   </div>
@@ -1111,94 +1223,263 @@ function previewSuggestion(idx) {
   switchTab('signal');
 }
 
+// ── Tip strip + tab badge update ─────────────────────────────────
+function updateTipStrip() {
+  const hasPeak  = !!lastPeakStore;
+  const hasProny = !!lastPronyStore;
+  const count    = (hasPeak ? 1 : 0) + (hasProny ? 1 : 0);
+
+  // Dot + label for each method
+  const dotP = document.getElementById('ts-dot-peak');
+  const lblP = document.getElementById('ts-lbl-peak');
+  const dotR = document.getElementById('ts-dot-prony');
+  const lblR = document.getElementById('ts-lbl-prony');
+  if (dotP) { dotP.className = 'ts-dot ' + (hasPeak  ? 'done' : 'wait'); }
+  if (lblP) { lblP.className = 'ts-label ' + (hasPeak  ? 'done' : 'wait'); }
+  if (dotR) { dotR.className = 'ts-dot ' + (hasProny ? 'done' : 'wait'); }
+  if (lblR) { lblR.className = 'ts-label ' + (hasProny ? 'done' : 'wait'); }
+
+  // Badge
+  const badge = document.getElementById('tip-badge');
+  if (badge) {
+    if (count === 0) { badge.className = 'tip-badge none'; badge.textContent = 'Run both methods to compare'; }
+    else if (count === 1) { badge.className = 'tip-badge half'; badge.textContent = 'Run the other method too'; }
+    else { badge.className = 'tip-badge full'; badge.textContent = '✓ Comparison ready'; }
+  }
+
+  // Tab badge
+  const tb = document.getElementById('cmp-tab-badge');
+  if (tb) { tb.className = 'tab-badge b' + count; tb.textContent = count + '/2'; }
+
+  // Empty state step classes
+  const s1 = document.getElementById('cmp-s1');
+  const s2 = document.getElementById('cmp-s2');
+  const s3 = document.getElementById('cmp-s3');
+  if (s1) s1.className = 'cmp-step ' + (hasPeak  ? 'cs-done' : 'cs-next');
+  if (s2) s2.className = 'cmp-step ' + (!hasPeak ? 'cs-wait' : hasProny ? 'cs-done' : 'cs-next');
+  if (s3) s3.className = 'cmp-step ' + (hasPeak && hasProny ? 'cs-done' : 'cs-wait');
+}
+
 // ── Comparison Panel ───────────────────────────────────────────────
 function buildComparisonPanel() {
-  const panel = el['compare-panel'];
+  updateTipStrip();
+
+  const empty   = document.getElementById('cmp-empty-state');
+  const content = document.getElementById('cmp-content');
+
   if (!lastPeakStore || !lastPronyStore) {
-    panel.innerHTML = `<div style="color:var(--muted);font-size:11px;padding:20px">
-      Run both Peak Envelope and Prony analyses to see comparison.<br>
-      <span style="color:var(--muted);font-size:10px">Switch between modes and click Calculate each time.</span>
-    </div>`;
-    el['tab-compare-btn'].style.display = 'none';
+    empty.style.display   = '';
+    content.style.display = 'none';
     return;
   }
 
   const cmp = buildComparisonData(lastPeakStore, lastPronyStore);
   if (!cmp) {
-    panel.innerHTML = `<div style="color:var(--warn);font-size:11px;padding:20px">No dominant Prony modes in the frequency band — cannot compare.</div>`;
+    empty.style.display   = '';
+    content.style.display = 'none';
+    content.innerHTML = '';
+    // Update empty state message
+    const desc = empty.querySelector('.cmp-empty-desc');
+    if (desc) desc.textContent = 'No dominant Prony modes found in the selected frequency band. Widen the frequency range or adjust the number of modes, then re-run.';
     return;
   }
 
-  const diffClass = (pct) => pct == null ? '' : pct < 5 ? 'diff-ok' : pct < 15 ? 'diff-warn' : 'diff-bad';
-  const fmt4 = v => v != null ? v.toFixed(4) : '—';
-  const fmtPct = v => v != null ? v.toFixed(1) + '%' : '—';
+  empty.style.display   = 'none';
+  content.style.display = '';
 
-  let html = `<div style="padding:14px;overflow-y:auto">
-    <div class="diag-section">
-      <h3>Peak Envelope vs Prony — Method Comparison</h3>
-      <div style="font-size:10px;color:var(--muted);margin-bottom:10px">
-        Prony dominant mode: ${lastPronyStore.modes[0]?.frequencyHz.toFixed(4)} Hz [${lastPronyStore.modes[0]?.classification ?? '—'}]
-      </div>
-      <table class="comparison-table">
-        <thead><tr>
-          <th>Parameter</th><th>Peak Envelope</th><th>Prony (Dom.)</th>
-          <th>Abs. Diff</th><th>Rel. Diff</th>
-        </tr></thead>
-        <tbody>
-          <tr>
-            <td>Frequency (Hz)</td>
-            <td>${fmt4(cmp.frequency.peak)}</td>
-            <td>${fmt4(cmp.frequency.prony)}</td>
-            <td class="${diffClass(cmp.frequency.diffPct)}">${fmt4(cmp.frequency.diff)}</td>
-            <td class="${diffClass(cmp.frequency.diffPct)}">${fmtPct(cmp.frequency.diffPct)}</td>
-          </tr>
-          <tr>
-            <td>Damping Ratio ζ</td>
-            <td>${fmt4(cmp.dampingRatio.peak)}</td>
-            <td>${fmt4(cmp.dampingRatio.prony)}</td>
-            <td class="${diffClass(cmp.dampingRatio.diffPct)}">${fmt4(cmp.dampingRatio.diff)}</td>
-            <td class="${diffClass(cmp.dampingRatio.diffPct)}">${fmtPct(cmp.dampingRatio.diffPct)}</td>
-          </tr>
-          <tr>
-            <td>Damping Rate σ (Np/s)</td>
-            <td>${fmt4(cmp.sigma.peak)}</td>
-            <td>${fmt4(cmp.sigma.prony)}</td>
-            <td class="${diffClass(cmp.sigma.diffPct)}">${fmt4(cmp.sigma.diff)}</td>
-            <td class="${diffClass(cmp.sigma.diffPct)}">${fmtPct(cmp.sigma.diffPct)}</td>
-          </tr>
-        </tbody>
-      </table>
-      <div style="margin-top:10px;font-size:9px;color:var(--muted)">
-        <span style="color:var(--success)">■</span> &lt;5% agreement &nbsp;
-        <span style="color:var(--warn)">■</span> 5–15% moderate &nbsp;
-        <span style="color:var(--danger)">■</span> &gt;15% significant discrepancy
-      </div>
-    </div>
-    <div class="diag-section">
-      <h3>IEEE/NERC Compliance Summary</h3>
-      <div class="diag-grid">
-        <div class="diag-item">
-          <div class="di-label">Peak — ζ</div>
-          <div class="di-value ${lastPeakStore.avgDampingRatio >= COMPLIANCE_MIN_DAMPING ? 'ok' : 'fail'}">${(lastPeakStore.avgDampingRatio*100).toFixed(2)}%</div>
-        </div>
-        <div class="diag-item">
-          <div class="di-label">Peak — T½ (s)</div>
-          <div class="di-value ${lastPeakStore.avgHalvingTime <= COMPLIANCE_MAX_HALVING_T ? 'ok' : 'fail'}">${lastPeakStore.avgHalvingTime === Infinity ? '∞' : lastPeakStore.avgHalvingTime.toFixed(3)}</div>
-        </div>
-        <div class="diag-item">
-          <div class="di-label">Prony Dom. ζ</div>
-          <div class="di-value ${lastPronyStore.modes[0]?.dampingRatio >= COMPLIANCE_MIN_DAMPING ? 'ok' : 'fail'}">${lastPronyStore.modes[0] ? (lastPronyStore.modes[0].dampingRatio*100).toFixed(2)+'%' : '—'}</div>
-        </div>
-        <div class="diag-item">
-          <div class="di-label">Prony R²</div>
-          <div class="di-value ${lastPronyStore.rSquared > 0.80 ? 'ok' : 'warn'}">${lastPronyStore.rSquared.toFixed(4)}</div>
-        </div>
-      </div>
-    </div>
-  </div>`;
-  panel.innerHTML = html;
-  el['tab-compare-btn'].style.display = '';
+  const p  = lastPeakStore;
+  const pr = lastPronyStore;
+  const dc = (pct) => pct == null ? '' : pct < 5 ? 'diff-ok' : pct < 15 ? 'diff-warn' : 'diff-bad';
+  const f4 = v => v != null ? v.toFixed(4) : '—';
+  const f2 = v => v != null ? v.toFixed(2) : '—';
+  const fp = v => v != null ? v.toFixed(1) + '%' : '—';
+  const fInf = v => v === Infinity ? '∞' : v != null ? v.toFixed(3) : '—';
+  const pass = (ok) => ok ? '<span class="flag-ok">PASS ✓</span>' : '<span class="flag-bad">FAIL ✗</span>';
+
+  // ── Agreement verdict ──
+  const freqAgree  = cmp.frequency.diffPct    != null && cmp.frequency.diffPct    < 5;
+  const zetaAgree  = cmp.dampingRatio.diffPct != null && cmp.dampingRatio.diffPct < 10;
+  const sigmaAgree = cmp.sigma.diffPct        != null && cmp.sigma.diffPct        < 10;
+  const agreementScore = [freqAgree, zetaAgree, sigmaAgree].filter(Boolean).length;
+  const verdictIcon  = agreementScore === 3 ? '✅' : agreementScore >= 1 ? '⚠️' : '❌';
+  const verdictTitle = agreementScore === 3 ? 'Good method agreement'
+                     : agreementScore >= 1  ? 'Partial agreement — review carefully'
+                     :                        'Significant discrepancy — investigate';
+  const verdictText  = agreementScore === 3
+    ? 'Peak Envelope and Prony results are consistent. Both methods confirm the dominant oscillatory mode within 5% frequency and 10% damping agreement.'
+    : agreementScore >= 1
+    ? 'Methods agree on some parameters but diverge on others. This is common when the signal has multiple modes, noise, or a short analysis window. Check Diagnostics for data quality issues.'
+    : 'Methods disagree significantly. Possible causes: multi-modal signal (check Prony all-modes), insufficient peaks for Peak Envelope, non-uniform sampling, or poor Prony fit (R² = ' + pr.rSquared.toFixed(3) + '). Review Diagnostics tab.';
+
+  // ── Per-pair peak table rows ──
+  const pairRows = p.pairs.map(pair => `
+    <tr>
+      <td>${pair.pairIndex}</td>
+      <td class="peak-col">${pair.time1.toFixed(3)}→${pair.time2.toFixed(3)}</td>
+      <td class="peak-col">${pair.frequencyHz.toFixed(4)}</td>
+      <td class="peak-col">${pair.dampingRatio.toFixed(4)}</td>
+      <td class="peak-col">${pair.sigma.toFixed(4)}</td>
+      <td class="peak-col">${pair.logDecrement.toFixed(4)}</td>
+      <td class="peak-col">${fInf(pair.halvingTime)}</td>
+    </tr>`).join('');
+
+  // ── All Prony modes rows ──
+  const modeRows = pr.allModes.map(m => {
+    const flag = !m.isDamped ? '<span class="flag-bad">NEG DAMP</span>'
+               : !m.inBand   ? '<span style="color:var(--muted)">out-of-band</span>'
+               : m.dampingRatio < 0.10 ? '<span class="flag-warn">LOW ζ</span>'
+               : '<span class="flag-ok">OK</span>';
+    return `<tr>
+      <td>${m.index}</td>
+      <td class="prony-col">${m.frequencyHz.toFixed(4)}</td>
+      <td class="prony-col">${m.period === Infinity ? '∞' : m.period.toFixed(3)}</td>
+      <td class="prony-col">${m.amplitude.toFixed(3)}</td>
+      <td class="prony-col">${m.dampingRate.toFixed(4)}</td>
+      <td class="prony-col">${m.dampingRatio.toFixed(4)}</td>
+      <td>${m.classification}</td>
+      <td>${flag}</td>
+    </tr>`;
+  }).join('');
+
+  // ── Build HTML ──
+  content.innerHTML = `
+  <div class="cmp-header">
+    <h2>Peak Envelope vs Prony — Full Results</h2>
+    <span class="cmp-meta">
+      Peak: ${p.pairs.length} pairs · freq range [${p.freqMin != null ? p.freqMin.toFixed(2) : '—'}–${p.freqMax != null ? p.freqMax.toFixed(2) : '—'}] Hz &nbsp;·&nbsp;
+      Prony: ${pr.allModes.length} modes (${pr.modes.length} in-band) · R² = ${pr.rSquared.toFixed(4)} · RMSE = ${pr.rmse.toFixed(4)} MW
+    </span>
+  </div>
+
+  <!-- ── Summary: both methods side by side ── -->
+  <div class="cmp-section-hdr">Summary — averaged results</div>
+  <div class="cmp-tbl-wrap">
+    <table class="cmp-tbl">
+      <thead><tr>
+        <th style="text-align:left">Parameter</th>
+        <th class="peak-col">Peak Envelope</th>
+        <th class="prony-col">Prony (dominant)</th>
+      </tr></thead>
+      <tbody>
+        <tr><td>Frequency (Hz)</td>
+          <td class="peak-col">${f4(p.avgFrequency)} ± ${f4(p.stdFrequency)}</td>
+          <td class="prony-col">${pr.modes[0] ? f4(pr.modes[0].frequencyHz) : '—'}</td></tr>
+        <tr><td>Period (s)</td>
+          <td class="peak-col">${p.avgFrequency > 0 ? f4(1/p.avgFrequency) : '—'}</td>
+          <td class="prony-col">${pr.modes[0] ? (pr.modes[0].period === Infinity ? '∞' : f4(pr.modes[0].period)) : '—'}</td></tr>
+        <tr><td>Damping ratio ζ</td>
+          <td class="peak-col">${f4(p.avgDampingRatio)} ± ${f4(p.stdDampingRatio)}</td>
+          <td class="prony-col">${pr.modes[0] ? f4(pr.modes[0].dampingRatio) : '—'}</td></tr>
+        <tr><td>Damping rate σ (Np/s)</td>
+          <td class="peak-col">${f4(p.avgSigma)}</td>
+          <td class="prony-col">${pr.modes[0] ? f4(pr.modes[0].dampingRate) : '—'}</td></tr>
+        <tr><td>Halving time T½ (s)</td>
+          <td class="peak-col">${fInf(p.avgHalvingTime)}</td>
+          <td class="prony-col">${pr.modes[0] ? fInf(Math.LN2 / pr.modes[0].dampingRate) : '—'}</td></tr>
+        <tr><td>Amplitude (MW)</td>
+          <td class="peak-col">—</td>
+          <td class="prony-col">${pr.modes[0] ? f4(pr.modes[0].amplitude) : '—'}</td></tr>
+        <tr><td>Oscillation class</td>
+          <td class="peak-col">${p.classification}</td>
+          <td class="prony-col">${pr.classification}</td></tr>
+        <tr><td>Freq range used (Hz)</td>
+          <td class="peak-col">${p.freqMin != null ? p.freqMin.toFixed(2)+' – '+p.freqMax.toFixed(2) : 'all pairs'}</td>
+          <td class="prony-col">${pr.freqMin.toFixed(2)} – ${pr.freqMax.toFixed(2)}</td></tr>
+        <tr><td>IEEE ζ ≥ ${(COMPLIANCE_MIN_DAMPING*100).toFixed(0)}%</td>
+          <td class="peak-col ${p.avgDampingRatio >= COMPLIANCE_MIN_DAMPING ? 'flag-ok' : 'flag-bad'}">${p.avgDampingRatio >= COMPLIANCE_MIN_DAMPING ? 'PASS' : 'FAIL'}</td>
+          <td class="prony-col ${pr.modes[0] && pr.modes[0].dampingRatio >= COMPLIANCE_MIN_DAMPING ? 'flag-ok' : 'flag-bad'}">${pr.modes[0] ? (pr.modes[0].dampingRatio >= COMPLIANCE_MIN_DAMPING ? 'PASS' : 'FAIL') : '—'}</td></tr>
+        <tr><td>IEEE T½ ≤ ${COMPLIANCE_MAX_HALVING_T} s</td>
+          <td class="peak-col ${p.avgHalvingTime <= COMPLIANCE_MAX_HALVING_T ? 'flag-ok' : 'flag-bad'}">${p.avgHalvingTime <= COMPLIANCE_MAX_HALVING_T ? 'PASS' : 'FAIL'}</td>
+          <td class="prony-col ${pr.modes[0] && Math.LN2/pr.modes[0].dampingRate <= COMPLIANCE_MAX_HALVING_T ? 'flag-ok' : 'flag-bad'}">${pr.modes[0] ? (Math.LN2/pr.modes[0].dampingRate <= COMPLIANCE_MAX_HALVING_T ? 'PASS' : 'FAIL') : '—'}</td></tr>
+        <tr><td>Fit quality</td>
+          <td class="peak-col">Env. A=${p.envelope ? p.envelope.A.toFixed(3) : '—'} σ=${p.envelope ? p.envelope.sigma.toFixed(4) : '—'}</td>
+          <td class="prony-col">R²=${pr.rSquared.toFixed(4)}  RMSE=${pr.rmse.toFixed(4)} MW</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ── Peak pair detail ── -->
+  <div class="cmp-section-hdr">Peak Envelope — all pairs (${p.pairs.length} pairs${p.freqMin != null ? ', filtered ['+p.freqMin.toFixed(2)+'–'+p.freqMax.toFixed(2)+'] Hz' : ''})</div>
+  <div class="cmp-tbl-wrap">
+    <table class="cmp-tbl">
+      <thead><tr>
+        <th style="text-align:left">Pair</th>
+        <th class="peak-col">t₁ (s)</th>
+        <th class="peak-col">t₂ (s)</th>
+        <th class="peak-col">Peak₁ (MW)</th>
+        <th class="peak-col">Peak₂ (MW)</th>
+        <th class="peak-col">Freq (Hz)</th>
+        <th class="peak-col">Log dec</th>
+        <th class="peak-col">σ (Np/s)</th>
+        <th class="peak-col">ζ</th>
+        <th class="peak-col">T½ (s)</th>
+      </tr></thead>
+      <tbody>
+        ${p.pairs.map(pair => `<tr>
+          <td>${pair.pairIndex}</td>
+          <td class="peak-col">${pair.time1.toFixed(4)}</td>
+          <td class="peak-col">${pair.time2.toFixed(4)}</td>
+          <td class="peak-col">${pair.peak1.toFixed(4)}</td>
+          <td class="peak-col">${pair.peak2.toFixed(4)}</td>
+          <td class="peak-col">${pair.frequencyHz.toFixed(4)}</td>
+          <td class="peak-col">${pair.logDecrement.toFixed(6)}</td>
+          <td class="peak-col">${pair.sigma.toFixed(6)}</td>
+          <td class="peak-col">${pair.dampingRatio.toFixed(6)}</td>
+          <td class="peak-col">${pair.halvingTime === Infinity ? '∞' : pair.halvingTime.toFixed(4)}</td>
+        </tr>`).join('')}
+        <tr class="avg-row">
+          <td>AVG</td><td>—</td><td>—</td><td>—</td><td>—</td>
+          <td class="peak-col">${f4(p.avgFrequency)} ± ${f4(p.stdFrequency)}</td>
+          <td>—</td>
+          <td class="peak-col">${f4(p.avgSigma)}</td>
+          <td class="peak-col">${f4(p.avgDampingRatio)} ± ${f4(p.stdDampingRatio)}</td>
+          <td class="peak-col">${fInf(p.avgHalvingTime)}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ── All Prony modes ── -->
+  <div class="cmp-section-hdr">Prony — all ${pr.allModes.length} modes (freq range [${pr.freqMin.toFixed(2)}–${pr.freqMax.toFixed(2)}] Hz, ${pr.modes.length} in-band)</div>
+  <div class="cmp-tbl-wrap">
+    <table class="cmp-tbl">
+      <thead><tr>
+        <th style="text-align:left">Mode</th>
+        <th class="prony-col">Freq (Hz)</th>
+        <th class="prony-col">Period (s)</th>
+        <th class="prony-col">Amp (MW)</th>
+        <th class="prony-col">σ (Np/s)</th>
+        <th class="prony-col">ζ</th>
+        <th class="prony-col">T½ (s)</th>
+        <th>Class</th>
+        <th>In-band</th>
+        <th>Damped</th>
+        <th>IEEE ζ</th>
+        <th>IEEE T½</th>
+      </tr></thead>
+      <tbody>${pr.allModes.map(m => {
+        const mT = m.dampingRate > 0 ? Math.LN2 / m.dampingRate : Infinity;
+        return `<tr>
+          <td>${m.index}</td>
+          <td class="prony-col">${m.frequencyHz.toFixed(4)}</td>
+          <td class="prony-col">${m.period === Infinity ? '∞' : m.period.toFixed(4)}</td>
+          <td class="prony-col">${m.amplitude.toFixed(4)}</td>
+          <td class="prony-col">${m.dampingRate.toFixed(6)}</td>
+          <td class="prony-col">${m.dampingRatio.toFixed(6)}</td>
+          <td class="prony-col">${mT === Infinity ? '∞' : mT.toFixed(3)}</td>
+          <td>${m.classification}</td>
+          <td class="${m.inBand ? 'flag-ok' : ''}">${m.inBand ? 'YES' : 'no'}</td>
+          <td class="${m.isDamped ? 'flag-ok' : 'flag-bad'}">${m.isDamped ? 'YES' : 'NO'}</td>
+          <td class="${m.dampingRatio >= COMPLIANCE_MIN_DAMPING ? 'flag-ok' : 'flag-bad'}">${m.dampingRatio >= COMPLIANCE_MIN_DAMPING ? 'PASS' : 'FAIL'}</td>
+          <td class="${mT <= COMPLIANCE_MAX_HALVING_T ? 'flag-ok' : 'flag-bad'}">${mT <= COMPLIANCE_MAX_HALVING_T ? 'PASS' : 'FAIL'}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>
+  </div>
+  <div style="height:14px"></div>
+  `;
 }
+
 
 // ── CSV Export (with metadata) ─────────────────────────────────────
 function exportCSV() {
@@ -1336,6 +1617,7 @@ function calculate() {
   try { signalData = preprocess(time, vals, useOffset, smoothWin); }
   catch (e) { showToast('Pre-processing error: ' + e.message); console.error('[DT UI] Preprocess:', e); return; }
   cachedSignal = signalData;
+  updateTipStrip();
 
   // Event detection suggestions (recommendations only)
   try {
@@ -1706,6 +1988,7 @@ window.addEventListener('load', () => {
   resizeChart();
   resizePSD();
   loadThemePreference();
+  updateTipStrip();
 });
 
 // Enter key shortcut

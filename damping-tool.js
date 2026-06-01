@@ -327,7 +327,7 @@ function fitExponentialEnvelope(peakTimes, peakValues) {
 //  9. PEAK-ENVELOPE DAMPING METHOD  (unchanged calculation)
 //     Enhanced: returns peak feedback counts and classification
 // ════════════════════════════════════════════════════════════════════
-function runPeakEnvelope(signalData, numPeaks, prominence) {
+function runPeakEnvelope(signalData, numPeaks, prominence, freqMin, freqMax) {
   // Validate inputs
   const valErrs = validatePeakParams(numPeaks, prominence);
   if (valErrs.length) throw new Error('Input validation: ' + valErrs.join(' | '));
@@ -356,7 +356,7 @@ function runPeakEnvelope(signalData, numPeaks, prominence) {
   const peakValues = peakIdx.map(i => smoothed[i]);
   const envelope   = fitExponentialEnvelope(peakTimes, peakValues);
 
-  const pairs = [], zetaList = [], sigmaList = [], halfList = [], freqList = [];
+  const allPairs = [], zetaAll = [], sigmaAll = [], halfAll = [], freqAll = [];
 
   for (let i = 0; i < peakValues.length - 1; i++) {
     const y1 = peakValues[i], y2 = peakValues[i + 1];
@@ -370,29 +370,46 @@ function runPeakEnvelope(signalData, numPeaks, prominence) {
     const halfT  = sigma > 0 ? Math.LN2 / sigma : Infinity;
     const freqHz = 1.0 / dt;
 
-    pairs.push({ pairIndex: i + 1, time1: t1, peak1: y1, time2: t2, peak2: y2,
+    allPairs.push({ pairIndex: i + 1, time1: t1, peak1: y1, time2: t2, peak2: y2,
                  logDecrement: delta, sigma, dampingRatio: zeta, frequencyHz: freqHz, halvingTime: halfT });
-    zetaList.push(zeta); sigmaList.push(sigma); halfList.push(halfT); freqList.push(freqHz);
   }
-  if (!pairs.length) throw new Error('All pairs skipped (non-positive values). Verify offset removal is appropriate for this signal.');
+  if (!allPairs.length) throw new Error('All pairs skipped (non-positive values). Verify offset removal is appropriate for this signal.');
+
+  // Apply optional frequency filter — keep all pairs for display, filter for averages
+  const useFreqFilter = Number.isFinite(freqMin) && Number.isFinite(freqMax) && freqMax > freqMin;
+  const pairs = useFreqFilter
+    ? allPairs.filter(p => p.frequencyHz >= freqMin && p.frequencyHz <= freqMax)
+    : allPairs;
+
+  const activePairs = pairs.length > 0 ? pairs : allPairs; // fallback if filter removes everything
+  for (const p of activePairs) {
+    zetaAll.push(p.dampingRatio); sigmaAll.push(p.sigma);
+    halfAll.push(p.halvingTime);  freqAll.push(p.frequencyHz);
+  }
 
   const avg = arr => arr.reduce((a, b) => a + b, 0) / arr.length;
   const std = arr => { const m = avg(arr); return Math.sqrt(arr.reduce((a, b) => a + (b - m) ** 2, 0) / arr.length); };
 
-  const avgFreq = avg(freqList);
+  const avgFreq = avg(freqAll);
   const classification = classifyOscillation(avgFreq);
+  const freqFilterNote = useFreqFilter && pairs.length < allPairs.length
+    ? ` (${allPairs.length - pairs.length} pair(s) outside [${freqMin.toFixed(2)}–${freqMax.toFixed(2)}] Hz filtered from averages)`
+    : '';
 
-  console.debug(`[DT] Peak Envelope: detected=${allDetected} rejected_neg=${negFiltered} used=${peakIdx.length} pairs=${pairs.length} ζ_avg=${avg(zetaList).toFixed(4)} class=${classification}`);
+  console.debug(`[DT] Peak Envelope: detected=${allDetected} rejected_neg=${negFiltered} used=${peakIdx.length} pairs=${allPairs.length} filtered=${activePairs.length} ζ_avg=${avg(zetaAll).toFixed(4)} class=${classification}${freqFilterNote}`);
 
   return {
-    methodLabel, pairs, peakTimes, peakValues, envelope,
-    avgDampingRatio: avg(zetaList),
-    stdDampingRatio: std(zetaList),
-    avgSigma:        avg(sigmaList),
-    avgHalvingTime:  avg(halfList),
+    methodLabel, pairs: allPairs, peakTimes, peakValues, envelope,
+    avgDampingRatio: avg(zetaAll),
+    stdDampingRatio: std(zetaAll),
+    avgSigma:        avg(sigmaAll),
+    avgHalvingTime:  avg(halfAll),
     avgFrequency:    avgFreq,
-    stdFrequency:    std(freqList),
+    stdFrequency:    std(freqAll),
     classification,
+    freqMin: useFreqFilter ? freqMin : null,
+    freqMax: useFreqFilter ? freqMax : null,
+    freqFilterNote,
     // Peak feedback
     peakFeedback: {
       allCandidates:     peakResult.allCandidates.length,
@@ -401,7 +418,8 @@ function runPeakEnvelope(signalData, numPeaks, prominence) {
       rejectedNegative:  negFiltered,
       usedForAnalysis:   peakIdx.length,
       truncated,
-      pairsUsed:         pairs.length,
+      pairsUsed:         activePairs.length,
+      pairsFreqFiltered: allPairs.length - activePairs.length,
     },
   };
 }
