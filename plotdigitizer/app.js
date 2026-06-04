@@ -257,10 +257,23 @@ const Calibration = (() => {
   }
 
   /**
+   * Re-derive x,y world coordinates for every existing data point using
+   * the current calibration. Call whenever calib values or axis type changes.
+   */
+  function recalcAllPoints() {
+    if (!isReady()) return;
+    State.points.forEach(pt => {
+      const world = pixelToWorld(pt.px, pt.py);
+      if (world) { pt.x = world.x; pt.y = world.y; }
+    });
+  }
+
+  /**
    * Set a calibration point (by key: x1|x2|y1|y2) from a canvas click.
    */
   function setPoint(key, px, py, val) {
     State.calib[key] = { px, py, val };
+    recalcAllPoints();
     _updateUI();
     Canvas.render();
   }
@@ -316,7 +329,7 @@ const Calibration = (() => {
 
   function getStatus() { return _updateUI; }
 
-  return { isReady, pixelToWorld, setPoint, updateUI: _updateUI };
+  return { isReady, pixelToWorld, setPoint, recalcAllPoints, updateUI: _updateUI };
 })();
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -557,6 +570,18 @@ const Exporter = (() => {
       canvas.width  = W;
       canvas.height = H;
 
+      // Read CSS custom properties so preview respects current theme
+      const cs = getComputedStyle(document.documentElement);
+      const clr = {
+        bg:         cs.getPropertyValue('--preview-canvas-bg').trim() || '#ffffff',
+        grid:       cs.getPropertyValue('--bg-elevated').trim()       || '#e8ecf4',
+        axis:       cs.getPropertyValue('--text-primary').trim()      || '#1a2035',
+        label:      cs.getPropertyValue('--text-secondary').trim()    || '#4a5570',
+        line:       cs.getPropertyValue('--accent').trim()            || '#3dd9c3',
+        dot:        cs.getPropertyValue('--accent-warm').trim()       || '#f5a623',
+        title:      cs.getPropertyValue('--text-primary').trim()      || '#1a2035',
+      };
+
       const pts = [...State.points].sort((a, b) => a.x - b.x);
       if (pts.length === 0) return;
 
@@ -572,11 +597,11 @@ const Exporter = (() => {
       const toSY = y => pad.top  + (1 - (y - yMin) / (yMax - yMin || 1)) * plotH;
 
       // Background
-      ctx.fillStyle = '#fff';
+      ctx.fillStyle = clr.bg;
       ctx.fillRect(0, 0, W, H);
 
       // Grid
-      ctx.strokeStyle = '#e8ecf5';
+      ctx.strokeStyle = clr.grid;
       ctx.lineWidth = 1;
       const gridLines = 6;
       for (let i = 0; i <= gridLines; i++) {
@@ -587,7 +612,7 @@ const Exporter = (() => {
       }
 
       // Axes
-      ctx.strokeStyle = '#333';
+      ctx.strokeStyle = clr.axis;
       ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.moveTo(pad.left, pad.top); ctx.lineTo(pad.left, H - pad.bottom);
@@ -595,7 +620,7 @@ const Exporter = (() => {
       ctx.stroke();
 
       // Axis labels
-      ctx.fillStyle = '#555';
+      ctx.fillStyle = clr.label;
       ctx.font = '11px JetBrains Mono, monospace';
       ctx.textAlign = 'center';
       const xStep = (xMax - xMin) / gridLines;
@@ -613,7 +638,7 @@ const Exporter = (() => {
       }
 
       // Line
-      ctx.strokeStyle = '#3dd9c3';
+      ctx.strokeStyle = clr.line;
       ctx.lineWidth = 2;
       ctx.lineJoin = 'round';
       ctx.beginPath();
@@ -624,7 +649,7 @@ const Exporter = (() => {
       ctx.stroke();
 
       // Dots
-      ctx.fillStyle = '#f5a623';
+      ctx.fillStyle = clr.dot;
       pts.forEach(pt => {
         ctx.beginPath();
         ctx.arc(toSX(pt.x), toSY(pt.y), 3.5, 0, Math.PI * 2);
@@ -632,7 +657,7 @@ const Exporter = (() => {
       });
 
       // Title
-      ctx.fillStyle = '#333';
+      ctx.fillStyle = clr.title;
       ctx.font = 'bold 13px DM Sans, sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText(`Digitized Curve — ${pts.length} points`, W / 2, 18);
@@ -919,8 +944,10 @@ const UI = (() => {
       const val = parseFloat(document.getElementById(`calib-${key}-val`).value);
       if (isNaN(val)) return;
       pt.val = val;                           // mutate in place
+      Calibration.recalcAllPoints();          // re-derive all x,y from stored px,py
       Canvas.render();
       Calibration.updateUI();
+      DataTable.refresh();                    // table now shows updated world coords
     });
     // Allow Enter key to arm the point
     document.getElementById(`calib-${key}-val`).addEventListener('keydown', e => {
@@ -931,9 +958,13 @@ const UI = (() => {
   // ── Axis type selects ──
   document.getElementById('x-axis-type').addEventListener('change', e => {
     State.xAxisType = e.target.value;
+    Calibration.recalcAllPoints();
+    DataTable.refresh();
   });
   document.getElementById('y-axis-type').addEventListener('change', e => {
     State.yAxisType = e.target.value;
+    Calibration.recalcAllPoints();
+    DataTable.refresh();
   });
 
   // ── Trace options ──
@@ -1128,6 +1159,19 @@ const UI = (() => {
   window.addEventListener('resize', () => {
     if (State.image) Canvas.resize();
   });
+
+  // ── Theme toggle (light / dark) with localStorage persistence ──
+  (function initTheme() {
+    const saved = localStorage.getItem('pd-theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', saved);
+
+    document.getElementById('btn-theme-toggle').addEventListener('click', () => {
+      const current = document.documentElement.getAttribute('data-theme');
+      const next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('pd-theme', next);
+    });
+  })();
 
   // ── Initial state ──
   UI.setStatus('No image loaded');
