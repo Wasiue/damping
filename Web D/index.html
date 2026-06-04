@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Plot Digitizer</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <!-- ═══════════════════════════════ HEADER ═══════════════════════════════ -->
+  <header class="app-header">
+    <div class="header-left">
+      <div class="logo">
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+          <rect x="1" y="1" width="26" height="26" rx="4" stroke="var(--accent)" stroke-width="1.5"/>
+          <polyline points="4,22 10,12 16,17 22,6" stroke="var(--accent)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="10" cy="12" r="2" fill="var(--accent-warm)"/>
+          <circle cx="16" cy="17" r="2" fill="var(--accent-warm)"/>
+          <circle cx="22" cy="6" r="2" fill="var(--accent-warm)"/>
+        </svg>
+        <span class="logo-text">Plot<strong>Digitizer</strong></span>
+      </div>
+    </div>
+
+    <div class="header-center">
+      <!-- Main Toolbar -->
+      <div class="toolbar" id="toolbar">
+        <div class="tool-group">
+          <button class="tool-btn" id="btn-upload" title="Upload Image (U)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <span>Upload</span>
+          </button>
+        </div>
+
+        <div class="tool-separator"></div>
+
+        <div class="tool-group" id="calibration-tools">
+          <button class="tool-btn" id="btn-calib-x" title="Calibrate X-Axis (X)" data-mode="calib-x">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="12" x2="7" y2="8"/><line x1="3" y1="12" x2="7" y2="16"/><line x1="21" y1="12" x2="17" y2="8"/><line x1="21" y1="12" x2="17" y2="16"/></svg>
+            <span>X-Axis</span>
+          </button>
+          <button class="tool-btn" id="btn-calib-y" title="Calibrate Y-Axis (Y)" data-mode="calib-y">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="3" x2="12" y2="21"/><line x1="12" y1="3" x2="8" y2="7"/><line x1="12" y1="3" x2="16" y2="7"/><line x1="12" y1="21" x2="8" y2="17"/><line x1="12" y1="21" x2="16" y2="17"/></svg>
+            <span>Y-Axis</span>
+          </button>
+        </div>
+
+        <div class="tool-separator"></div>
+
+        <div class="tool-group" id="digitize-tools">
+          <button class="tool-btn" id="btn-trace" title="Freehand Trace (T)" data-mode="trace">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/><path d="M13 13l6 6"/></svg>
+            <span>Trace</span>
+          </button>
+          <button class="tool-btn" id="btn-pick" title="Manual Point Pick (P)" data-mode="pick">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg>
+            <span>Pick</span>
+          </button>
+        </div>
+
+        <div class="tool-separator"></div>
+
+        <div class="tool-group" id="view-tools">
+          <button class="tool-btn" id="btn-pan" title="Pan (Space)" data-mode="pan">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20"/></svg>
+            <span>Pan</span>
+          </button>
+          <button class="tool-btn" id="btn-zoom-in" title="Zoom In (+)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+            <span>Zoom+</span>
+          </button>
+          <button class="tool-btn" id="btn-zoom-out" title="Zoom Out (-)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+            <span>Zoom-</span>
+          </button>
+          <button class="tool-btn" id="btn-reset-view" title="Reset View (R)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.95"/></svg>
+            <span>Reset</span>
+          </button>
+        </div>
+
+        <div class="tool-separator"></div>
+
+        <div class="tool-group">
+          <button class="tool-btn" id="btn-clear-points" title="Clear Points">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+            <span>Clear</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <div class="status-badge" id="status-badge">
+        <span class="status-dot"></span>
+        <span id="status-text">No image loaded</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════ MAIN LAYOUT ═══════════════════════════ -->
+  <main class="app-main">
+
+    <!-- LEFT: Canvas Area -->
+    <section class="canvas-section" id="canvas-section">
+
+      <!-- Drop Zone Overlay -->
+      <div class="drop-zone" id="drop-zone">
+        <div class="drop-zone-content">
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+            <rect x="3" y="3" width="18" height="18" rx="3"/>
+            <polyline points="8 12 12 8 16 12"/>
+            <line x1="12" y1="8" x2="12" y2="16"/>
+          </svg>
+          <h2>Drop your plot image here</h2>
+          <p>or <label for="file-input" class="file-link">browse files</label></p>
+          <p class="file-hint">PNG, JPG, JPEG supported</p>
+        </div>
+        <input type="file" id="file-input" accept=".png,.jpg,.jpeg" hidden />
+      </div>
+
+      <!-- Canvas Container -->
+      <div class="canvas-container" id="canvas-container" style="display:none">
+        <canvas id="main-canvas"></canvas>
+        <!-- Crosshair cursor overlay -->
+        <div class="crosshair-h" id="crosshair-h"></div>
+        <div class="crosshair-v" id="crosshair-v"></div>
+        <!-- Pixel coordinate readout -->
+        <div class="coord-readout" id="coord-readout">—</div>
+      </div>
+    </section>
+
+    <!-- RIGHT: Side Panel -->
+    <aside class="side-panel" id="side-panel">
+
+      <!-- Calibration Panel -->
+      <div class="panel-section" id="panel-calibration">
+        <div class="panel-header">
+          <span class="panel-icon">◈</span>
+          <h3>Axis Calibration</h3>
+          <button class="panel-collapse-btn" data-target="calib-body">▾</button>
+        </div>
+        <div class="panel-body" id="calib-body">
+
+          <div class="axis-type-row">
+            <label>X-Axis</label>
+            <select id="x-axis-type" class="axis-select">
+              <option value="linear">Linear</option>
+              <option value="log">Logarithmic</option>
+            </select>
+            <label>Y-Axis</label>
+            <select id="y-axis-type" class="axis-select">
+              <option value="linear">Linear</option>
+              <option value="log">Logarithmic</option>
+            </select>
+          </div>
+
+          <!-- Inline instruction -->
+          <div class="calib-instructions" id="calib-instructions">
+            <span class="calib-instr-icon">①</span>
+            <span id="calib-instr-text">Enter a value, click <strong>Set</strong>, then click on the plot</span>
+          </div>
+
+          <!-- X calibration points -->
+          <div class="calib-group" id="calib-x-group">
+            <div class="calib-group-label">
+              <span class="calib-axis-label x-label">X</span>
+              X-Axis Points
+            </div>
+            <div class="calib-point-row" id="calib-x1-row">
+              <div class="calib-point-indicator" id="calib-x1-dot"></div>
+              <span class="calib-point-name">X₁</span>
+              <input type="number" id="calib-x1-val" class="calib-input" placeholder="e.g. 0" step="any" title="X₁ axis value"/>
+              <button class="calib-set-btn" id="btn-set-x1" data-point="x1" title="Enter value then click to place on plot">Set</button>
+            </div>
+            <div class="calib-point-row" id="calib-x2-row">
+              <div class="calib-point-indicator" id="calib-x2-dot"></div>
+              <span class="calib-point-name">X₂</span>
+              <input type="number" id="calib-x2-val" class="calib-input" placeholder="e.g. 10" step="any" title="X₂ axis value"/>
+              <button class="calib-set-btn" id="btn-set-x2" data-point="x2" title="Enter value then click to place on plot">Set</button>
+            </div>
+          </div>
+
+          <!-- Y calibration points -->
+          <div class="calib-group" id="calib-y-group">
+            <div class="calib-group-label">
+              <span class="calib-axis-label y-label">Y</span>
+              Y-Axis Points
+            </div>
+            <div class="calib-point-row" id="calib-y1-row">
+              <div class="calib-point-indicator" id="calib-y1-dot"></div>
+              <span class="calib-point-name">Y₁</span>
+              <input type="number" id="calib-y1-val" class="calib-input" placeholder="e.g. 0" step="any" title="Y₁ axis value"/>
+              <button class="calib-set-btn" id="btn-set-y1" data-point="y1" title="Enter value then click to place on plot">Set</button>
+            </div>
+            <div class="calib-point-row" id="calib-y2-row">
+              <div class="calib-point-indicator" id="calib-y2-dot"></div>
+              <span class="calib-point-name">Y₂</span>
+              <input type="number" id="calib-y2-val" class="calib-input" placeholder="e.g. 10" step="any" title="Y₂ axis value"/>
+              <button class="calib-set-btn" id="btn-set-y2" data-point="y2" title="Enter value then click to place on plot">Set</button>
+            </div>
+          </div>
+
+          <div class="calib-status" id="calib-status">
+            <span class="calib-status-icon">○</span>
+            <span id="calib-status-text">Set 4 calibration points to begin</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tracing Options Panel -->
+      <div class="panel-section" id="panel-trace-opts">
+        <div class="panel-header">
+          <span class="panel-icon">◎</span>
+          <h3>Trace Settings</h3>
+          <button class="panel-collapse-btn" data-target="trace-body">▾</button>
+        </div>
+        <div class="panel-body" id="trace-body">
+          <div class="option-row">
+            <label>Brush size</label>
+            <input type="range" id="trace-brush" min="2" max="20" value="6" class="range-input"/>
+            <span class="range-val" id="trace-brush-val">6px</span>
+          </div>
+          <div class="option-row">
+            <label>Sampling step</label>
+            <input type="range" id="trace-step" min="1" max="20" value="4" class="range-input"/>
+            <span class="range-val" id="trace-step-val">4px</span>
+          </div>
+          <div class="option-row">
+            <label>Smooth output</label>
+            <label class="toggle-switch">
+              <input type="checkbox" id="trace-smooth" checked/>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Data Points Panel -->
+      <div class="panel-section panel-section--grow" id="panel-data">
+        <div class="panel-header">
+          <span class="panel-icon">≋</span>
+          <h3>Data Points <span class="point-count-badge" id="point-count">0</span></h3>
+          <button class="panel-collapse-btn" data-target="data-body">▾</button>
+        </div>
+        <div class="panel-body panel-body--grow" id="data-body">
+          <div class="data-table-wrapper" id="data-table-wrapper">
+            <table class="data-table" id="data-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>X</th>
+                  <th>Y</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="data-tbody">
+                <tr class="empty-row"><td colspan="4">No data points yet</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Export Panel -->
+      <div class="panel-section" id="panel-export">
+        <div class="panel-header">
+          <span class="panel-icon">↗</span>
+          <h3>Export</h3>
+          <button class="panel-collapse-btn" data-target="export-body">▾</button>
+        </div>
+        <div class="panel-body" id="export-body">
+          <div class="export-grid">
+            <button class="export-btn" id="btn-export-csv">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              CSV
+            </button>
+            <button class="export-btn" id="btn-export-txt">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+              TXT
+            </button>
+            <button class="export-btn" id="btn-export-json">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+              JSON
+            </button>
+            <button class="export-btn" id="btn-copy-clip">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              Copy
+            </button>
+          </div>
+          <button class="preview-btn" id="btn-preview-curve">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            Preview Digitized Curve
+          </button>
+        </div>
+      </div>
+
+    </aside>
+  </main>
+
+  <!-- ═══════════════════════════════ MODALS ════════════════════════════════ -->
+
+  <!-- Curve preview modal -->
+  <div class="modal-overlay" id="modal-preview" style="display:none">
+    <div class="modal modal--large">
+      <div class="modal-header">
+        <h4>Digitized Curve Preview</h4>
+        <button class="modal-close" id="modal-preview-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <canvas id="preview-canvas" width="600" height="400"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast notifications -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
